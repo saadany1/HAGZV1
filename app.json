@@ -2,28 +2,96 @@
   "expo": {
     "name": "HagzApp",
     "slug": "HagzApp",
-    "version": "1.0.0",
+    "version": "15",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#4CAF50"
     },
+    "newArchEnabled": true,
+    "jsEngine": "hermes",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/icon.png"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundImage": "./assets/icon.png",
+        "backgroundColor": "#4CAF50"
       },
-      "edgeToEdgeEnabled": true
+      "icon": "./assets/icon.png",
+      "package": "com.saadany3.hagzapp2024",
+      "versionCode": 15,
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET",
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/icon.png",
+      "bundler": "metro"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you select profile pictures and share images in the app.",
+          "cameraPermission": "The app accesses your camera to let you take profile pictures and share photos in the app."
+        }
+      ],
+      [
+        "@react-native-firebase/app",
+        {
+          "android": {
+            "googleServicesFile": "./google-services.json"
+          }
+        }
+      ],
+      [
+        "@react-native-firebase/messaging",
+        {
+          "android": {
+            "requestPermission": false,
+            "icon": "@drawable/notification_icon",
+            "color": "#4CAF50",
+            "channelId": "default"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification_icon.png",
+          "color": "#4CAF50",
+          "defaultChannel": "default",
+          "sounds": [
+            "./assets/notification_sound.wav"
+          ]
+        }
+      ],
+      "./plugins/withAndroidManifestFixes.js"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "09cc7470-3c53-4046-9782-ff80cf1e5b2c"
+      }
+    },
+    "owner": "saadany3"
   }
 }
