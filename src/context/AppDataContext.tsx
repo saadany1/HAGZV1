@@ -151,14 +151,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
 
         console.log('🚀 Starting global app data preload...');
         
-        // Initialize push notifications for authenticated user
-        try {
-          const { fcmPushNotificationService } = await import('../services/fcmPushNotificationService');
-          const pushResult = await fcmPushNotificationService.registerForPushNotifications();
-          console.log('📱 Push notification registration result:', pushResult.success ? 'Success' : 'Failed/Skipped');
-        } catch (error) {
-          console.error('📱 Push notification registration error:', error);
-        }
+        // Push notifications temporarily disabled for crash debugging
+        console.log('🚫 FCM registration in AppDataContext temporarily disabled for crash debugging');
         
         // Load all data in parallel for maximum speed
         await Promise.all([
@@ -185,13 +179,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     // Listen for auth changes to reload data
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        // Register for push notifications on sign in
-        try {
-          const { fcmPushNotificationService } = await import('../services/fcmPushNotificationService');
-          await fcmPushNotificationService.registerForPushNotifications();
-        } catch (error) {
-          console.error('📱 Push notification registration on sign in failed:', error);
-        }
+        // Push notifications temporarily disabled for crash debugging
+        console.log('🚫 FCM registration on sign in temporarily disabled for crash debugging');
         await initializeAppData();
       } else if (event === 'SIGNED_OUT') {
         // Clear all data

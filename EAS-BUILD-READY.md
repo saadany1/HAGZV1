@@ -106,3 +106,4 @@ npx eas build --platform android --profile preview
 ```
 
 **The manifest merger conflicts are completely resolved through the managed Expo workflow!** 🎉
+

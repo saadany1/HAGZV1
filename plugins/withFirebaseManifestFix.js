@@ -159,3 +159,4 @@ const withFirebaseManifestFix = (config) => {
 };
 
 module.exports = withFirebaseManifestFix;
+
