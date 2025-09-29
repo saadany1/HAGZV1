@@ -67,10 +67,7 @@
         "@react-native-firebase/messaging",
         {
           "android": {
-            "requestPermission": false,
-            "icon": "@drawable/notification_icon",
-            "color": "#4CAF50",
-            "channelId": "default"
+            "requestPermission": false
           }
         }
       ],
@@ -85,7 +82,7 @@
           ]
         }
       ],
-      "./plugins/withAndroidManifestFixes.js"
+      "./plugins/withFirebaseManifestFix.js"
     ],
     "extra": {
       "eas": {

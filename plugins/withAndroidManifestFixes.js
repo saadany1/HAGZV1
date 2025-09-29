@@ -137,43 +137,60 @@ const withAndroidManifestFixes = (config) => {
       app.receiver.push(firebaseReceiver);
     }
     
-    // Add tools:replace to Firebase metadata to resolve conflicts
-    if (app['meta-data']) {
-      app['meta-data'].forEach(metadata => {
-        const name = metadata.$['android:name'];
-        if (name && name.startsWith('com.google.firebase.messaging.default_notification_')) {
-          if (metadata.$['android:value']) {
-            metadata.$['tools:replace'] = 'android:value';
-          } else if (metadata.$['android:resource']) {
-            metadata.$['tools:replace'] = 'android:resource';
-          }
-        }
-      });
+    // Ensure meta-data array exists
+    if (!app['meta-data']) {
+      app['meta-data'] = [];
     }
     
-    // Ensure Firebase metadata has tools:replace attributes
+    // Define Firebase metadata with tools:replace to override plugin defaults
     const firebaseMetadata = [
       {
-        name: 'com.google.firebase.messaging.default_notification_channel_id',
-        value: 'default',
-        replaceAttr: 'android:value'
+        $: {
+          'android:name': 'com.google.firebase.messaging.default_notification_channel_id',
+          'android:value': 'default',
+          'tools:replace': 'android:value'
+        }
       },
       {
-        name: 'com.google.firebase.messaging.default_notification_color',
-        resource: '@color/notification_icon_color',
-        replaceAttr: 'android:resource'
+        $: {
+          'android:name': 'com.google.firebase.messaging.default_notification_color',
+          'android:resource': '@color/notification_icon_color',
+          'tools:replace': 'android:resource'
+        }
       },
       {
-        name: 'com.google.firebase.messaging.default_notification_icon',
-        resource: '@drawable/notification_icon',
-        replaceAttr: 'android:resource'
+        $: {
+          'android:name': 'com.google.firebase.messaging.default_notification_icon',
+          'android:resource': '@drawable/notification_icon',
+          'tools:replace': 'android:resource'
+        }
       }
     ];
     
-    firebaseMetadata.forEach(meta => {
-      const existingMeta = app['meta-data'].find(m => m.$['android:name'] === meta.name);
-      if (existingMeta) {
-        existingMeta.$['tools:replace'] = meta.replaceAttr;
+    // Add or update Firebase metadata with tools:replace
+    firebaseMetadata.forEach(newMeta => {
+      const existingIndex = app['meta-data'].findIndex(
+        meta => meta.$['android:name'] === newMeta.$['android:name']
+      );
+      
+      if (existingIndex >= 0) {
+        // Replace existing metadata with our version that has tools:replace
+        app['meta-data'][existingIndex] = newMeta;
+      } else {
+        // Add new metadata
+        app['meta-data'].push(newMeta);
+      }
+    });
+    
+    // Also ensure any existing Firebase metadata has tools:replace
+    app['meta-data'].forEach(metadata => {
+      const name = metadata.$['android:name'];
+      if (name && name.startsWith('com.google.firebase.messaging.default_notification_')) {
+        if (metadata.$['android:value'] && !metadata.$['tools:replace']) {
+          metadata.$['tools:replace'] = 'android:value';
+        } else if (metadata.$['android:resource'] && !metadata.$['tools:replace']) {
+          metadata.$['tools:replace'] = 'android:resource';
+        }
       }
     });
     
