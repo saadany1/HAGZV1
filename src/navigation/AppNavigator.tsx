@@ -25,7 +25,7 @@ import SplashScreen from '../components/SplashScreen';
 import AppLoader from '../components/AppLoader';
 import { supabase, db } from '../lib/supabase';
 import { AppDataProvider } from '../context/AppDataContext';
-import { pushNotificationService } from '../services/pushNotificationService';
+import { fcmPushNotificationService } from '../services/fcmPushNotificationService';
 
 // More screen subscreens
 import ProfileScreen from '../screens/ProfileScreen';
@@ -161,6 +161,8 @@ const smoothTransitionOptions = {
 };
 
 const TabNavigator: React.FC = () => {
+  // Remove the undefined hasPendingNotifications variable for now
+  const hasPendingNotifications = false; // TODO: Implement proper notification state management
 
   return (
     <Tab.Navigator
@@ -276,7 +278,7 @@ const AppNavigator: React.FC = () => {
     let isMounted = true;
     
     // Setup push notification listeners
-    const removeNotificationListeners = pushNotificationService.setupNotificationListeners();
+    const removeNotificationListeners = fcmPushNotificationService.setupNotificationListeners();
     
     const initializeAuth = async () => {
       try {
@@ -318,7 +320,7 @@ const AppNavigator: React.FC = () => {
         // Register for push notifications after successful login
         try {
           console.log('Registering for push notifications after login...');
-          const result = await pushNotificationService.registerForPushNotifications();
+          const result = await fcmPushNotificationService.registerForPushNotifications();
           if (result.success) {
             console.log('✅ Push notifications registered successfully');
           } else {
@@ -362,7 +364,7 @@ const AppNavigator: React.FC = () => {
         // Register for push notifications for existing session
         try {
           console.log('Registering for push notifications for existing session...');
-          const result = await pushNotificationService.registerForPushNotifications();
+          const result = await fcmPushNotificationService.registerForPushNotifications();
           if (result.success) {
             console.log('✅ Push notifications registered for existing session');
           } else {

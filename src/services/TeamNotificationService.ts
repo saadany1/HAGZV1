@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { pushNotificationService, AdminPushService } from './pushNotificationService';
+import { fcmPushNotificationService, AdminFCMService } from './fcmPushNotificationService';
 
 export interface TeamNotificationData {
   type: 'match_found' | 'team_chat_message' | 'team_update' | 'match_reminder';
@@ -47,7 +47,7 @@ export class TeamNotificationService {
       }
 
       // Send notifications using the admin service
-      const result = await AdminPushService.sendPushNotification(
+      const result = await AdminFCMService.sendFCMNotification(
         tokenStrings,
         title,
         body,

@@ -15,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase, auth, db } from '../lib/supabase';
-import { pushNotificationService, AdminPushService } from '../services/pushNotificationService';
+import { fcmPushNotificationService, AdminFCMService } from '../services/fcmPushNotificationService';
 
 type AdminPanelNavigationProp = StackNavigationProp<RootStackParamList, 'AdminPanel'>;
 
@@ -67,7 +67,7 @@ const AdminPanelScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      const result = await AdminPushService.sendTestNotification(
+      const result = await AdminFCMService.sendTestNotification(
         undefined, // Send to all users
         testTitle.trim(),
         testMessage.trim()
@@ -91,7 +91,7 @@ const AdminPanelScreen: React.FC = () => {
 
   const clearAllNotifications = async () => {
     try {
-      await pushNotificationService.clearAllNotifications();
+      await fcmPushNotificationService.clearAllNotifications();
       Alert.alert('Success', 'All notifications cleared');
     } catch (error) {
       console.error('Error clearing notifications:', error);

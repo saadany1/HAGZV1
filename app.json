@@ -2,7 +2,7 @@
   "expo": {
     "name": "HagzApp",
     "slug": "HagzApp",
-    "version": "16",
+    "version": "17",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -28,7 +28,7 @@
       },
       "icon": "./assets/icon.png",
       "package": "com.saadany3.hagzapp2024",
-      "versionCode": 16,
+      "versionCode": 17,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.CAMERA",
