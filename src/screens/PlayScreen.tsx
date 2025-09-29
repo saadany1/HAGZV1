@@ -21,7 +21,6 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
 import { supabase, auth, db } from '../lib/supabase';
 import { useAppData } from '../context/AppDataContext';
-import { notificationService } from '../services/notificationService';
 
 interface Pitch {
   id: string;

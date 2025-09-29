@@ -187,8 +187,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       if (event === 'SIGNED_IN' && session?.user) {
         // Register for push notifications on sign in
         try {
-          const { notificationService } = await import('../services/notificationService');
-          await notificationService.registerForPushNotifications();
+          const { fcmPushNotificationService } = await import('../services/fcmPushNotificationService');
+          await fcmPushNotificationService.registerForPushNotifications();
         } catch (error) {
           console.error('📱 Push notification registration on sign in failed:', error);
         }

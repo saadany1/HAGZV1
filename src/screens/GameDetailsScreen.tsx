@@ -16,7 +16,6 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase, db } from '../lib/supabase';
-import { notificationService } from '../services/notificationService';
 
 const { width, height } = Dimensions.get('window');
 
