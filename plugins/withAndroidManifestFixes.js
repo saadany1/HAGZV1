@@ -151,6 +151,32 @@ const withAndroidManifestFixes = (config) => {
       });
     }
     
+    // Ensure Firebase metadata has tools:replace attributes
+    const firebaseMetadata = [
+      {
+        name: 'com.google.firebase.messaging.default_notification_channel_id',
+        value: 'default',
+        replaceAttr: 'android:value'
+      },
+      {
+        name: 'com.google.firebase.messaging.default_notification_color',
+        resource: '@color/notification_icon_color',
+        replaceAttr: 'android:resource'
+      },
+      {
+        name: 'com.google.firebase.messaging.default_notification_icon',
+        resource: '@drawable/notification_icon',
+        replaceAttr: 'android:resource'
+      }
+    ];
+    
+    firebaseMetadata.forEach(meta => {
+      const existingMeta = app['meta-data'].find(m => m.$['android:name'] === meta.name);
+      if (existingMeta) {
+        existingMeta.$['tools:replace'] = meta.replaceAttr;
+      }
+    });
+    
     return config;
   });
 };
