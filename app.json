@@ -29,12 +29,15 @@
       "icon": "./assets/icon.png",
       "package": "com.saadany3.hagzapp2024",
       "versionCode": 19,
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
       ]
     },
     "web": {
@@ -53,6 +56,22 @@
         }
       ],
       [
+        "@react-native-firebase/app",
+        {
+          "android": {
+            "googleServicesFile": "./google-services.json"
+          }
+        }
+      ],
+      [
+        "@react-native-firebase/messaging",
+        {
+          "android": {
+            "requestPermission": false
+          }
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/notification_icon.png",
@@ -62,7 +81,8 @@
             "./assets/notification_sound.wav"
           ]
         }
-      ]
+      ],
+      "./plugins/withFirebaseManifestFix.js"
     ],
     "extra": {
       "eas": {

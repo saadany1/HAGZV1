@@ -151,8 +151,16 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
 
         console.log('🚀 Starting global app data preload...');
         
-        // Push notifications temporarily disabled for crash debugging
-        console.log('🚫 FCM registration in AppDataContext temporarily disabled for crash debugging');
+        // Initialize push notifications for authenticated user (delayed for stability)
+        setTimeout(async () => {
+          try {
+            const { fcmPushNotificationService } = await import('../services/fcmPushNotificationService');
+            const pushResult = await fcmPushNotificationService.registerForPushNotifications();
+            console.log('📱 Push notification registration result:', pushResult.success ? 'Success' : 'Failed/Skipped');
+          } catch (error) {
+            console.error('📱 Push notification registration error:', error);
+          }
+        }, 3000); // Delay to ensure app is fully stable
         
         // Load all data in parallel for maximum speed
         await Promise.all([
@@ -179,8 +187,15 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     // Listen for auth changes to reload data
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        // Push notifications temporarily disabled for crash debugging
-        console.log('🚫 FCM registration on sign in temporarily disabled for crash debugging');
+        // Register for push notifications on sign in (delayed for stability)
+        setTimeout(async () => {
+          try {
+            const { fcmPushNotificationService } = await import('../services/fcmPushNotificationService');
+            await fcmPushNotificationService.registerForPushNotifications();
+          } catch (error) {
+            console.error('📱 Push notification registration on sign in failed:', error);
+          }
+        }, 2000);
         await initializeAppData();
       } else if (event === 'SIGNED_OUT') {
         // Clear all data

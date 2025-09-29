@@ -277,9 +277,14 @@ const AppNavigator: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     
-    // Setup push notification listeners (TEMPORARILY DISABLED FOR DEBUGGING)
+    // Setup push notification listeners (with error handling to prevent crashes)
     let removeNotificationListeners = () => {};
-    console.log('🚫 FCM notification listeners temporarily disabled for crash debugging');
+    try {
+      removeNotificationListeners = fcmPushNotificationService.setupNotificationListeners();
+      console.log('✅ FCM notification listeners setup successfully');
+    } catch (error) {
+      console.error('Failed to setup notification listeners (non-critical):', error);
+    }
     
     const initializeAuth = async () => {
       try {
@@ -318,8 +323,20 @@ const AppNavigator: React.FC = () => {
         setUser(session.user);
         await checkOnboardingStatus(session.user.id);
         
-        // Push notifications temporarily disabled for crash debugging
-        console.log('🚫 FCM registration temporarily disabled for crash debugging');
+        // Register for push notifications after successful login (non-blocking)
+        setTimeout(async () => {
+          try {
+            console.log('Registering for push notifications after login...');
+            const result = await fcmPushNotificationService.registerForPushNotifications();
+            if (result.success) {
+              console.log('✅ Push notifications registered successfully');
+            } else {
+              console.log('⚠️ Push notification registration failed:', result.error);
+            }
+          } catch (error) {
+            console.log('⚠️ Push notification registration error:', error);
+          }
+        }, 2000); // Increased delay to ensure app is fully loaded
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setHasCompletedOnboarding(false);
@@ -352,8 +369,20 @@ const AppNavigator: React.FC = () => {
         setUser(session.user);
         await checkOnboardingStatus(session.user.id);
         
-        // Push notifications temporarily disabled for crash debugging
-        console.log('🚫 FCM registration temporarily disabled for crash debugging');
+        // Register for push notifications after successful login (non-blocking)
+        setTimeout(async () => {
+          try {
+            console.log('Registering for push notifications after login...');
+            const result = await fcmPushNotificationService.registerForPushNotifications();
+            if (result.success) {
+              console.log('✅ Push notifications registered successfully');
+            } else {
+              console.log('⚠️ Push notification registration failed:', result.error);
+            }
+          } catch (error) {
+            console.log('⚠️ Push notification registration error:', error);
+          }
+        }, 2000); // Increased delay to ensure app is fully loaded
         
         console.log('Initial auth check completed - user authenticated');
       } else {
