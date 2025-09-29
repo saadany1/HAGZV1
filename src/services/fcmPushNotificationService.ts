@@ -1,8 +1,15 @@
-import messaging from '@react-native-firebase/messaging';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
+
+// Import Firebase messaging with error handling
+let messaging: any = null;
+try {
+  messaging = require('@react-native-firebase/messaging').default;
+} catch (error) {
+  console.error('Firebase messaging not available:', error);
+}
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -43,6 +50,11 @@ export class FCMPushNotificationService {
     if (this.isRegistering) {
       console.log('FCM push notification registration already in progress');
       return { success: false, error: 'Registration already in progress' };
+    }
+
+    if (!messaging) {
+      console.log('Firebase messaging not available, skipping FCM registration');
+      return { success: false, error: 'Firebase messaging not available' };
     }
 
     this.isRegistering = true;
@@ -256,13 +268,19 @@ export class FCMPushNotificationService {
    * Setup FCM notification listeners
    */
   setupNotificationListeners() {
-    // Handle background messages
-    messaging().setBackgroundMessageHandler(async remoteMessage => {
-      console.log('📱 FCM Message handled in the background!', remoteMessage);
-    });
+    if (!messaging) {
+      console.log('Firebase messaging not available, skipping listener setup');
+      return () => {};
+    }
 
-    // Handle foreground messages
-    const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+    try {
+      // Handle background messages
+      messaging().setBackgroundMessageHandler(async remoteMessage => {
+        console.log('📱 FCM Message handled in the background!', remoteMessage);
+      });
+
+      // Handle foreground messages
+      const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
       console.log('📱 FCM Message received in foreground!', remoteMessage);
       
       // Show local notification when app is in foreground
@@ -302,11 +320,15 @@ export class FCMPushNotificationService {
       this.handleNotificationTap(data);
     });
 
-    return () => {
-      unsubscribeForeground();
-      unsubscribeNotificationOpen();
-      Notifications.removeNotificationSubscription(responseListener);
-    };
+      return () => {
+        unsubscribeForeground();
+        unsubscribeNotificationOpen();
+        Notifications.removeNotificationSubscription(responseListener);
+      };
+    } catch (error) {
+      console.error('Error setting up FCM listeners:', error);
+      return () => {};
+    }
   }
 
   /**
@@ -362,13 +384,23 @@ export class FCMPushNotificationService {
    * Handle token refresh
    */
   setupTokenRefreshListener() {
-    const unsubscribe = messaging().onTokenRefresh(token => {
-      console.log('🔄 FCM Token refreshed:', token);
-      this.currentToken = token;
-      this.savePushToken(token);
-    });
+    if (!messaging) {
+      console.log('Firebase messaging not available, skipping token refresh listener');
+      return () => {};
+    }
 
-    return unsubscribe;
+    try {
+      const unsubscribe = messaging().onTokenRefresh(token => {
+        console.log('🔄 FCM Token refreshed:', token);
+        this.currentToken = token;
+        this.savePushToken(token);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('Error setting up token refresh listener:', error);
+      return () => {};
+    }
   }
 }
 

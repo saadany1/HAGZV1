@@ -153,9 +153,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         
         // Initialize push notifications for authenticated user
         try {
-          const { notificationService } = await import('../services/notificationService');
-          const pushToken = await notificationService.registerForPushNotifications();
-          console.log('📱 Push notification registration result:', pushToken ? 'Success' : 'Failed/Skipped');
+          const { fcmPushNotificationService } = await import('../services/fcmPushNotificationService');
+          const pushResult = await fcmPushNotificationService.registerForPushNotifications();
+          console.log('📱 Push notification registration result:', pushResult.success ? 'Success' : 'Failed/Skipped');
         } catch (error) {
           console.error('📱 Push notification registration error:', error);
         }

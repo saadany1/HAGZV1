@@ -277,8 +277,13 @@ const AppNavigator: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     
-    // Setup push notification listeners
-    const removeNotificationListeners = fcmPushNotificationService.setupNotificationListeners();
+    // Setup push notification listeners (with error handling to prevent crashes)
+    let removeNotificationListeners = () => {};
+    try {
+      removeNotificationListeners = fcmPushNotificationService.setupNotificationListeners();
+    } catch (error) {
+      console.error('Failed to setup notification listeners (non-critical):', error);
+    }
     
     const initializeAuth = async () => {
       try {
@@ -317,18 +322,20 @@ const AppNavigator: React.FC = () => {
         setUser(session.user);
         await checkOnboardingStatus(session.user.id);
         
-        // Register for push notifications after successful login
-        try {
-          console.log('Registering for push notifications after login...');
-          const result = await fcmPushNotificationService.registerForPushNotifications();
-          if (result.success) {
-            console.log('✅ Push notifications registered successfully');
-          } else {
-            console.log('⚠️ Push notification registration failed:', result.error);
+        // Register for push notifications after successful login (non-blocking)
+        setTimeout(async () => {
+          try {
+            console.log('Registering for push notifications after login...');
+            const result = await fcmPushNotificationService.registerForPushNotifications();
+            if (result.success) {
+              console.log('✅ Push notifications registered successfully');
+            } else {
+              console.log('⚠️ Push notification registration failed:', result.error);
+            }
+          } catch (error) {
+            console.log('⚠️ Push notification registration error:', error);
           }
-        } catch (error) {
-          console.log('⚠️ Push notification registration error:', error);
-        }
+        }, 1000); // Delay to ensure app is fully loaded
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setHasCompletedOnboarding(false);
@@ -361,18 +368,20 @@ const AppNavigator: React.FC = () => {
         setUser(session.user);
         await checkOnboardingStatus(session.user.id);
         
-        // Register for push notifications for existing session
-        try {
-          console.log('Registering for push notifications for existing session...');
-          const result = await fcmPushNotificationService.registerForPushNotifications();
-          if (result.success) {
-            console.log('✅ Push notifications registered for existing session');
-          } else {
-            console.log('⚠️ Push notification registration failed for existing session:', result.error);
+        // Register for push notifications for existing session (non-blocking)
+        setTimeout(async () => {
+          try {
+            console.log('Registering for push notifications for existing session...');
+            const result = await fcmPushNotificationService.registerForPushNotifications();
+            if (result.success) {
+              console.log('✅ Push notifications registered for existing session');
+            } else {
+              console.log('⚠️ Push notification registration failed for existing session:', result.error);
+            }
+          } catch (error) {
+            console.log('⚠️ Push notification registration error for existing session:', error);
           }
-        } catch (error) {
-          console.log('⚠️ Push notification registration error for existing session:', error);
-        }
+        }, 1000); // Delay to ensure app is fully loaded
         
         console.log('Initial auth check completed - user authenticated');
       } else {
