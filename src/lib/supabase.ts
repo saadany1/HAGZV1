@@ -696,7 +696,7 @@ export const db = {
           status
         `)
         .eq('game_id', gameId)
-        .eq('status', 'joined')
+        .eq('status', 'confirmed')
         .order('joined_at', { ascending: true });
 
       if (membersError) {
@@ -749,7 +749,7 @@ export const db = {
         .select('id')
         .eq('game_id', gameId)
         .eq('user_id', userId)
-        .eq('status', 'joined')
+        .eq('status', 'confirmed')
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
