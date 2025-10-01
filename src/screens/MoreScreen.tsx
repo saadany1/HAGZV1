@@ -73,11 +73,6 @@ const MoreScreen: React.FC = () => {
             date,
             time,
             max_players
-          ),
-          inviter:user_profiles!notifications_invited_by_fkey(
-            id,
-            full_name,
-            username
           )
         `)
         .eq('user_id', user.id)
@@ -89,7 +84,23 @@ const MoreScreen: React.FC = () => {
         return;
       }
 
-      setNotifications(userNotifications || []);
+      // Get inviter details for each notification
+      const notificationsWithInviter = await Promise.all(
+        (userNotifications || []).map(async (notification) => {
+          if (notification.invited_by) {
+            const { data: inviter } = await supabase
+              .from('user_profiles')
+              .select('id, full_name, username')
+              .eq('id', notification.invited_by)
+              .single();
+            
+            return { ...notification, inviter };
+          }
+          return notification;
+        })
+      );
+
+      setNotifications(notificationsWithInviter);
     } catch (error) {
       console.error('Error loading notifications:', error);
     } finally {
