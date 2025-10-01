@@ -84,20 +84,22 @@ const MoreScreen: React.FC = () => {
         return;
       }
 
-      // Get inviter details for each notification
+      // Get inviter details for each notification and filter out declined
       const notificationsWithInviter = await Promise.all(
-        (userNotifications || []).map(async (notification) => {
-          if (notification.invited_by) {
-            const { data: inviter } = await supabase
-              .from('user_profiles')
-              .select('id, full_name, username')
-              .eq('id', notification.invited_by)
-              .single();
-            
-            return { ...notification, inviter };
-          }
-          return notification;
-        })
+        (userNotifications || [])
+          .filter(notification => notification.status !== 'rejected') // Filter out declined invitations
+          .map(async (notification) => {
+            if (notification.invited_by) {
+              const { data: inviter } = await supabase
+                .from('user_profiles')
+                .select('id, full_name, username')
+                .eq('id', notification.invited_by)
+                .single();
+              
+              return { ...notification, inviter };
+            }
+            return notification;
+          })
       );
 
       setNotifications(notificationsWithInviter);
@@ -113,11 +115,11 @@ const MoreScreen: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Join the game
+      // Join the game using the correct table name
       const { error: joinError } = await supabase
-        .from('booking_members')
+        .from('game_members')
         .insert({
-          booking_id: notification.game_id,
+          game_id: notification.game_id,
           user_id: user.id,
           role: 'player',
           status: 'confirmed',
@@ -167,7 +169,7 @@ const MoreScreen: React.FC = () => {
         return;
       }
 
-      // Refresh notifications
+      // Refresh notifications (declined invitations will be filtered out)
       await loadNotifications();
       
       Alert.alert('Invitation Rejected', 'You have declined the game invitation.');
@@ -283,14 +285,14 @@ const MoreScreen: React.FC = () => {
                       <View style={styles.notificationHeader}>
                         <Ionicons 
                           name={notification.type === 'game_invitation' ? 'football' : 'notifications'} 
-                          size={20} 
+                          size={16} 
                           color="#4CAF50" 
                         />
                         <Text style={styles.notificationTitle}>{notification.title}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(notification.status) }]}>
                           <Ionicons 
                             name={getStatusIcon(notification.status) as any} 
-                            size={12} 
+                            size={10} 
                             color="#fff" 
                           />
                           <Text style={styles.statusText}>{getStatusText(notification.status)}</Text>
@@ -303,33 +305,27 @@ const MoreScreen: React.FC = () => {
                           <Text style={styles.gameDetails}>
                             {new Date(notification.game.date).toLocaleDateString()} at {notification.game.time}
                           </Text>
-                          <Text style={styles.gameLocation}>{notification.game.pitch_location}</Text>
                         </View>
                       )}
                       {notification.inviter && (
-                        <View style={styles.inviterInfo}>
-                          <Text style={styles.inviterText}>
-                            Invited by: {notification.inviter.full_name || notification.inviter.username || 'Unknown'}
-                          </Text>
-                        </View>
+                        <Text style={styles.inviterText}>
+                          by {notification.inviter.full_name || notification.inviter.username || 'Unknown'}
+                        </Text>
                       )}
-                      <Text style={styles.notificationTime}>
-                        {new Date(notification.created_at).toLocaleString()}
-                      </Text>
                       {notification.type === 'game_invitation' && notification.status === 'pending' && (
                         <View style={styles.invitationActions}>
                           <TouchableOpacity
                             style={styles.acceptButton}
                             onPress={() => handleAcceptInvitation(notification)}
                           >
-                            <Ionicons name="checkmark" size={16} color="#fff" />
+                            <Ionicons name="checkmark" size={14} color="#fff" />
                             <Text style={styles.acceptButtonText}>Accept</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.rejectButton}
                             onPress={() => handleRejectInvitation(notification)}
                           >
-                            <Ionicons name="close" size={16} color="#fff" />
+                            <Ionicons name="close" size={14} color="#fff" />
                             <Text style={styles.rejectButtonText}>Decline</Text>
                           </TouchableOpacity>
                         </View>
@@ -681,13 +677,13 @@ const styles = StyleSheet.create({
   },
   notificationItem: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 8,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   notificationContent: {
-    padding: 16,
+    padding: 12,
   },
   notificationHeader: {
     flexDirection: 'row',
@@ -695,38 +691,33 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   notificationTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#fff',
-    marginLeft: 8,
+    marginLeft: 6,
     flex: 1,
   },
   notificationMessage: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 20,
-    marginBottom: 12,
+    lineHeight: 16,
+    marginBottom: 8,
   },
   gameInfo: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 8,
   },
   gameName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#4CAF50',
-    marginBottom: 4,
-  },
-  gameDetails: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: 2,
   },
-  gameLocation: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
+  gameDetails: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   invitationActions: {
     flexDirection: 'row',
@@ -738,14 +729,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 4,
   },
   acceptButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   rejectButton: {
@@ -754,16 +745,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 4,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   rejectButtonText: {
     color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   emptyNotifications: {
@@ -797,19 +788,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  inviterInfo: {
-    marginTop: 8,
-    marginBottom: 4,
-  },
   inviterText: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255, 255, 255, 0.6)',
     fontStyle: 'italic',
-  },
-  notificationTime: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.4)',
-    marginTop: 4,
+    marginBottom: 4,
   },
 });
 
