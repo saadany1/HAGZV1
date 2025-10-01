@@ -8,7 +8,8 @@ import { supabase } from '../lib/supabase';
 // Configure how notifications are presented when app is foregrounded
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -37,9 +38,18 @@ export async function registerForPushNotificationsAsync(userId?: string) {
     // 2) Get Expo push token (this token is what Expo Push Service expects)
     // Use projectId from app.json extra.eas.projectId if available
     const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId;
-    const tokenResponse = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    );
+    console.log('Project ID for push token:', projectId);
+    
+    let tokenResponse;
+    try {
+      tokenResponse = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined
+      );
+    } catch (error) {
+      console.error('Error getting Expo push token:', error);
+      // Fallback: try without projectId
+      tokenResponse = await Notifications.getExpoPushTokenAsync();
+    }
     const token = tokenResponse.data;
     console.log('Expo push token:', token);
 
@@ -151,9 +161,18 @@ export async function getCurrentPushToken(): Promise<string | null> {
     }
 
     const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId;
-    const tokenResponse = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    );
+    console.log('Project ID for push token:', projectId);
+    
+    let tokenResponse;
+    try {
+      tokenResponse = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined
+      );
+    } catch (error) {
+      console.error('Error getting Expo push token:', error);
+      // Fallback: try without projectId
+      tokenResponse = await Notifications.getExpoPushTokenAsync();
+    }
     return tokenResponse.data;
   } catch (error) {
     console.error('Error getting current push token:', error);

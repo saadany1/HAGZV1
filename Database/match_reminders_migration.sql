@@ -50,14 +50,14 @@ BEGIN
         b.created_by,
         b.max_players,
         b.is_public,
-        (b.date + b.time - INTERVAL '2 hours') as reminder_time
+        (b.date::timestamp + b.time::time - INTERVAL '2 hours') as reminder_time
     FROM public.bookings b
     WHERE 
         b.reminder_sent = FALSE
         AND b.notification_enabled = TRUE
         AND b.date >= CURRENT_DATE
-        AND (b.date + b.time - INTERVAL '2 hours') <= NOW()
-        AND (b.date + b.time) > NOW() -- Match hasn't started yet
+        AND (b.date::timestamp + b.time::time - INTERVAL '2 hours') <= NOW()
+        AND (b.date::timestamp + b.time::time) > NOW() -- Match hasn't started yet
     ORDER BY b.date, b.time;
 END;
 $$;

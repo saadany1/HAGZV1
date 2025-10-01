@@ -1,7 +1,7 @@
 // Server configuration for push notifications
 export const SERVER_CONFIG = {
   // Update this URL to your actual server URL
-  BASE_URL: 'https://your-server-url.com', // Replace with your actual server URL
+  BASE_URL: 'http://localhost:3000', // Using localhost for now
   
   // Local development URL (for testing)
   LOCAL_URL: 'http://localhost:3000',
