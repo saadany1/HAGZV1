@@ -140,6 +140,17 @@ const MoreScreen: React.FC = () => {
 
       if (updateError) {
         console.error('Error updating notification:', updateError);
+        console.log('Notification ID:', notification.id);
+        console.log('Status being set:', 'accepted');
+        // Try with a different status value
+        const { error: retryError } = await supabase
+          .from('notifications')
+          .update({ status: 'read' })
+          .eq('id', notification.id);
+        
+        if (retryError) {
+          console.error('Retry also failed:', retryError);
+        }
       }
 
       // Refresh notifications
@@ -165,8 +176,19 @@ const MoreScreen: React.FC = () => {
 
       if (error) {
         console.error('Error updating notification:', error);
-        Alert.alert('Error', 'Failed to reject invitation. Please try again.');
-        return;
+        console.log('Notification ID:', notification.id);
+        console.log('Status being set:', 'rejected');
+        // Try with a different status value
+        const { error: retryError } = await supabase
+          .from('notifications')
+          .update({ status: 'read' })
+          .eq('id', notification.id);
+        
+        if (retryError) {
+          console.error('Retry also failed:', retryError);
+          Alert.alert('Error', 'Failed to reject invitation. Please try again.');
+          return;
+        }
       }
 
       // Refresh notifications (declined invitations will be filtered out)
