@@ -115,6 +115,36 @@ const MoreScreen: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Check if user is already a member of this game
+      const { data: existingMember, error: checkError } = await supabase
+        .from('game_members')
+        .select('id')
+        .eq('game_id', notification.game_id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('Error checking existing membership:', checkError);
+        Alert.alert('Error', 'Failed to check game membership. Please try again.');
+        return;
+      }
+
+      if (existingMember) {
+        // User is already a member, just update notification status
+        const { error: updateError } = await supabase
+          .from('notifications')
+          .update({ status: 'accepted' })
+          .eq('id', notification.id);
+
+        if (updateError) {
+          console.error('Error updating notification:', updateError);
+        }
+
+        await loadNotifications();
+        Alert.alert('Already Joined', 'You are already a member of this game!');
+        return;
+      }
+
       // Join the game using the correct table name
       const { error: joinError } = await supabase
         .from('game_members')
