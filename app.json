@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "HAGZ",
+    "name": "HagzApp",
     "slug": "HagzApp",
-    "version": "19",
+    "version": "21",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -27,18 +27,15 @@
         "backgroundColor": "#4CAF50"
       },
       "icon": "./assets/icon.png",
-      "package": "com.saadany3.hagzapp2024",
-      "versionCode": 19,
-      "googleServicesFile": "./google-services.json",
+        "package": "com.saadany2.hagzfootballapp",
+      "versionCode": 21,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.INTERNET",
-        "android.permission.WAKE_LOCK",
-        "android.permission.RECEIVE_BOOT_COMPLETED"
-      ]
+        "android.permission.RECORD_AUDIO"
+      ],
+      "googleServicesFile": "$GOOGLE_SERVICES_JSON"
     },
     "web": {
       "favicon": "./assets/icon.png",
@@ -56,33 +53,15 @@
         }
       ],
       [
-        "@react-native-firebase/app",
-        {
-          "android": {
-            "googleServicesFile": "./google-services.json"
-          }
-        }
-      ],
-      [
-        "@react-native-firebase/messaging",
-        {
-          "android": {
-            "requestPermission": false
-          }
-        }
-      ],
-      [
         "expo-notifications",
         {
-          "icon": "./assets/notification_icon.png",
+          "icon": "./assets/icon.png",
           "color": "#4CAF50",
           "defaultChannel": "default",
-          "sounds": [
-            "./assets/notification_sound.wav"
-          ]
+          "sounds": ["./assets/notification_sound.wav"]
         }
       ],
-      "./plugins/withFirebaseManifestFix.js"
+      "./plugins/withGoogleServices.js"
     ],
     "extra": {
       "eas": {
