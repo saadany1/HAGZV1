@@ -6,7 +6,7 @@ const withGoogleServices = (config) => {
   // Write the file immediately when the plugin is loaded
   const googleServicesJson = process.env.GOOGLE_SERVICES_JSON;
   
-  if (googleServicesJson) {
+  if (googleServicesJson && googleServicesJson !== '$GOOGLE_SERVICES_JSON') {
     try {
       // Write to project root
       const projectRootPath = path.join(process.cwd(), 'google-services.json');
@@ -16,7 +16,7 @@ const withGoogleServices = (config) => {
       console.error('❌ Failed to write google-services.json:', error.message);
     }
   } else {
-    console.warn('⚠️ GOOGLE_SERVICES_JSON environment variable not found');
+    console.warn('⚠️ GOOGLE_SERVICES_JSON environment variable not found or contains placeholder');
   }
 
   return withDangerousMod(config, [
