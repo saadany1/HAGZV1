@@ -17,9 +17,8 @@ export const SERVER_CONFIG = {
 
 // Get the appropriate server URL based on environment
 export const getServerUrl = () => {
-  // In development, you might want to use localhost
-  // In production, use your deployed server URL
-  return __DEV__ ? SERVER_CONFIG.LOCAL_URL : SERVER_CONFIG.BASE_URL;
+  // Always use the deployed server for now
+  return SERVER_CONFIG.BASE_URL;
 };
 
 // Helper function to build full endpoint URLs

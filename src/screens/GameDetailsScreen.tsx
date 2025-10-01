@@ -16,6 +16,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase, db } from '../lib/supabase';
+import { gameInvitationService } from '../services/gameInvitationService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -244,43 +245,38 @@ const GameDetailsScreen: React.FC = () => {
       }
 
       // Check if there's already a pending invitation for this user
-      const { data: existingInvite } = await supabase
-        .from('notifications')
-        .select('id')
-        .eq('user_id', targetUser.id)
-        .eq('game_id', game.id)
-        .eq('type', 'game_invitation')
-        .eq('status', 'pending')
-        .single();
-
-      if (existingInvite) {
+      const hasPending = await gameInvitationService.hasPendingInvitation(targetUser.id, game.id);
+      if (hasPending) {
         setInviteError('An invitation is already pending for this player.');
         return;
       }
 
-      // Create notification in database
-      const { error: notificationError } = await db.createNotification({
-        user_id: targetUser.id,
-        type: 'game_invitation',
-        title: 'Game Invitation',
-        message: `${user.user_metadata?.full_name || user.email || 'Someone'} invited you to join "${game.title}" on ${game.date} at ${game.time}`,
-        game_id: game.id,
-        invited_by: user.id,
-        status: 'pending'
-      });
+      // Prepare invitation details
+      const invitationDetails = {
+        gameTitle: game.title,
+        gameDate: game.date,
+        gameTime: game.time,
+        pitchName: game.title,
+        pitchLocation: game.location,
+        inviterName: user.user_metadata?.full_name || user.email || 'Someone',
+        gameId: game.id
+      };
 
-      if (notificationError) {
-        console.error('Notification creation error:', notificationError);
-        setInviteError('Failed to send invite. Please try again.');
-        return;
+      // Send game invitation with push notification
+      const result = await gameInvitationService.sendGameInvitation(
+        targetUser.id,
+        user.id,
+        invitationDetails
+      );
+
+      if (result.success) {
+        setShowInviteModal(false);
+        setInviteUsername('');
+        setSearchResults([]);
+        setShowInviteSuccessModal(true);
+      } else {
+        setInviteError(result.error || 'Failed to send invitation. Please try again.');
       }
-
-      // Push notification will be sent automatically via createNotification
-
-      setShowInviteModal(false);
-      setInviteUsername('');
-      setSearchResults([]);
-      setShowInviteSuccessModal(true);
     } catch (error) {
       console.error('Error sending invitation:', error);
       setInviteError('Unexpected error. Please try again.');
