@@ -243,7 +243,39 @@ const GameDetailsScreen: React.FC = () => {
         return;
       }
 
-      console.log('Invitation sent successfully');
+      // Check if there's already a pending invitation for this user
+      const { data: existingInvite } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', targetUser.id)
+        .eq('game_id', game.id)
+        .eq('type', 'game_invitation')
+        .eq('status', 'pending')
+        .single();
+
+      if (existingInvite) {
+        setInviteError('An invitation is already pending for this player.');
+        return;
+      }
+
+      // Create notification in database
+      const { error: notificationError } = await db.createNotification({
+        user_id: targetUser.id,
+        type: 'game_invitation',
+        title: 'Game Invitation',
+        message: `${user.user_metadata?.full_name || user.email || 'Someone'} invited you to join "${game.title}" on ${game.date} at ${game.time}`,
+        game_id: game.id,
+        invited_by: user.id,
+        status: 'pending'
+      });
+
+      if (notificationError) {
+        console.error('Notification creation error:', notificationError);
+        setInviteError('Failed to send invite. Please try again.');
+        return;
+      }
+
+      // Push notification will be sent automatically via createNotification
 
       setShowInviteModal(false);
       setInviteUsername('');

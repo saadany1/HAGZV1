@@ -621,7 +621,19 @@ const PlayScreen: React.FC = () => {
         const senderName = user.user_metadata?.full_name || user.email || 'Someone';
 
         for (const target of invitedUsers) {
-          console.log('Invitation sent to', target.username);
+          // Create database notification (push notification will be sent automatically)
+          const { error: notificationError } = await db.createNotification({
+            user_id: target.id,
+            type: 'game_invitation',
+            title: 'Game Invitation',
+            message: `${senderName} invited you to join "${gameTitle}" on ${gameDate} at ${gameTime}`,
+            game_id: newBooking.id,
+            invited_by: user.id,
+            status: 'pending',
+          });
+          if (notificationError) {
+            console.error('Error sending invite to', target.username, notificationError);
+          }
         }
       }
 

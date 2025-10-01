@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +24,6 @@ import SplashScreen from '../components/SplashScreen';
 import AppLoader from '../components/AppLoader';
 import { supabase, db } from '../lib/supabase';
 import { AppDataProvider } from '../context/AppDataContext';
-import { fcmPushNotificationService } from '../services/fcmPushNotificationService';
 
 // More screen subscreens
 import ProfileScreen from '../screens/ProfileScreen';
@@ -41,7 +39,6 @@ import MatchDetailScreen from '../screens/MatchDetailScreen';
 import TeamSettingsScreen from '../screens/TeamSettingsScreen';
 import CreateTeamScreen from '../screens/CreateTeamScreen';
 import TeamChatScreen from '../screens/TeamChatScreen';
-import AdminPanelScreen from '../screens/AdminPanelScreen';
 
 export type RootStackParamList = {
   Landing: undefined;
@@ -67,7 +64,6 @@ export type RootStackParamList = {
   TeamSettings: { teamId: string };
   CreateTeam: undefined;
   TeamChat: { teamId: string; teamName: string };
-  AdminPanel: undefined;
 };
 
 export type TabParamList = {
@@ -161,8 +157,45 @@ const smoothTransitionOptions = {
 };
 
 const TabNavigator: React.FC = () => {
-  // Remove the undefined hasPendingNotifications variable for now
-  const hasPendingNotifications = false; // TODO: Implement proper notification state management
+  const [hasPendingNotifications, setHasPendingNotifications] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    let intervalId: any;
+
+    const loadPending = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          if (isMounted) setHasPendingNotifications(false);
+          return;
+        }
+        const { count, error } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+        if (!error && isMounted) {
+          setHasPendingNotifications((count || 0) > 0);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    loadPending();
+    intervalId = setInterval(loadPending, 30000);
+
+    const { data: authSub } = supabase.auth.onAuthStateChange(() => {
+      loadPending();
+    });
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+      authSub?.subscription?.unsubscribe?.();
+    };
+  }, []);
 
   return (
     <Tab.Navigator
@@ -277,15 +310,6 @@ const AppNavigator: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     
-    // Setup push notification listeners (with error handling to prevent crashes)
-    let removeNotificationListeners = () => {};
-    try {
-      removeNotificationListeners = fcmPushNotificationService.setupNotificationListeners();
-      console.log('✅ FCM notification listeners setup successfully');
-    } catch (error) {
-      console.error('Failed to setup notification listeners (non-critical):', error);
-    }
-    
     const initializeAuth = async () => {
       try {
         // Add minimum splash screen time for better UX
@@ -322,22 +346,7 @@ const AppNavigator: React.FC = () => {
         // Don't show loading for subsequent auth changes
         setUser(session.user);
         await checkOnboardingStatus(session.user.id);
-        
-        // Register for push notifications after successful login (non-blocking)
-        setTimeout(async () => {
-          try {
-            console.log('Registering for push notifications after login...');
-            const result = await fcmPushNotificationService.registerForPushNotifications();
-            if (result.success) {
-              console.log('✅ Push notifications registered successfully');
-            } else {
-              console.log('⚠️ Push notification registration failed:', result.error);
-            }
-          } catch (error) {
-            console.log('⚠️ Push notification registration error:', error);
-          }
-        }, 2000); // Increased delay to ensure app is fully loaded
-      } else if (event === 'SIGNED_OUT') {
+      } else       if (event === 'SIGNED_OUT') {
         setUser(null);
         setHasCompletedOnboarding(false);
         // Clear cache on logout for better performance and privacy
@@ -348,7 +357,6 @@ const AppNavigator: React.FC = () => {
     return () => {
       isMounted = false;
       authListener.subscription.unsubscribe();
-      removeNotificationListeners();
     };
   }, [isInitialCheckComplete]);
 
@@ -368,22 +376,6 @@ const AppNavigator: React.FC = () => {
         console.log('Found existing session for user:', session.user.id);
         setUser(session.user);
         await checkOnboardingStatus(session.user.id);
-        
-        // Register for push notifications after successful login (non-blocking)
-        setTimeout(async () => {
-          try {
-            console.log('Registering for push notifications after login...');
-            const result = await fcmPushNotificationService.registerForPushNotifications();
-            if (result.success) {
-              console.log('✅ Push notifications registered successfully');
-            } else {
-              console.log('⚠️ Push notification registration failed:', result.error);
-            }
-          } catch (error) {
-            console.log('⚠️ Push notification registration error:', error);
-          }
-        }, 2000); // Increased delay to ensure app is fully loaded
-        
         console.log('Initial auth check completed - user authenticated');
       } else {
         console.log('No existing session found');
@@ -667,25 +659,15 @@ const AppNavigator: React.FC = () => {
             ...smoothTransitionOptions,
           }}
         />
-        <Stack.Screen 
-          name="AdminPanel" 
-          component={AdminPanelScreen}
-          options={{
-            headerShown: false,
-            ...smoothTransitionOptions,
-          }}
-        />
       </Stack.Navigator>
     );
   };
 
   return (
     <AppDataProvider>
-      <NavigationContainer>
-        <AppLoader>
-          {renderNavigator()}
-        </AppLoader>
-      </NavigationContainer>
+      <AppLoader>
+        {renderNavigator()}
+      </AppLoader>
     </AppDataProvider>
   );
 };

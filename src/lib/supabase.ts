@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ENV, validateEnv } from '../config/env';
-import TeamNotificationService from '../services/TeamNotificationService';
 
 // Validate environment variables
 validateEnv();
@@ -806,30 +805,7 @@ export const db = {
             day: 'numeric' 
           });
 
-          // Notify the requesting team
-          await TeamNotificationService.notifyMatchFound(
-            teamId,
-            data.opponent_team_name,
-            dateString,
-            timeLabel
-          );
-
-          // Notify the opponent team if we have their team ID
-          if (data.opponent_team_id) {
-            // Get the requesting team's name
-            const { data: teamData } = await supabase
-              .from('teams')
-              .select('name')
-              .eq('id', teamId)
-              .single();
-
-            await TeamNotificationService.notifyMatchFound(
-              data.opponent_team_id,
-              teamData?.name || 'Another team',
-              dateString,
-              timeLabel
-            );
-          }
+          // Team notifications have been removed from the app
         } catch (pushError) {
           console.log('Match found push notifications skipped - this is expected in Expo Go');
           // Don't fail the match creation if push notifications fail
@@ -1356,7 +1332,178 @@ export const db = {
     }
   },
 
+  // Notification functions
+  createNotification: async (notificationData: {
+    user_id: string;
+    type: string;
+    title: string;
+    message: string;
+    game_id: string;
+    invited_by: string;
+    status?: string;
+  }) => {
+    if (!ENV.ENABLE_SUPABASE) {
+      return { data: { success: true, message: 'Mock: Notification created' }, error: null };
+    }
 
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert([{
+          ...notificationData,
+          status: notificationData.status || 'pending',
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Create notification error:', error);
+        return { data: null, error };
+      }
+
+      // Send push notification for game invitations
+      if (notificationData.type === 'game_invitation') {
+        try {
+          // Get target user's push token
+          const { data: targetUser } = await supabase
+            .from('user_profiles')
+            .select('push_token, full_name, email')
+            .eq('id', notificationData.user_id)
+            .single();
+
+          if (targetUser?.push_token) {
+            // Import the service dynamically to avoid circular dependencies
+            const { gameInvitationService } = await import('../services/gameInvitationService');
+            
+            // Get game details for the notification
+            const { data: gameData } = await supabase
+              .from('bookings')
+              .select('id, pitch_name, pitch_location, date, time, created_by')
+              .eq('id', notificationData.game_id)
+              .single();
+
+            // Get inviter details
+            const { data: inviterData } = await supabase
+              .from('user_profiles')
+              .select('full_name, email')
+              .eq('id', notificationData.invited_by)
+              .single();
+
+            if (gameData && inviterData) {
+              const inviterName = inviterData.full_name || inviterData.email || 'Someone';
+              
+              // Send local notification if this is the current user (for testing)
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user && user.id === notificationData.user_id) {
+                const { sendCustomLocalNotification } = await import('../services/pushNotifications');
+                await sendCustomLocalNotification(
+                  '⚽ Game Invitation',
+                  `${inviterName} invited you to join a match at ${gameData.pitch_name}`,
+                  {
+                    screen: 'GameDetails',
+                    gameId: gameData.id,
+                    type: 'game_invitation'
+                  },
+                  { sound: true, priority: 'high' }
+                );
+              }
+            }
+          }
+        } catch (pushError) {
+          console.error('Error sending push notification for invitation:', pushError);
+          // Don't fail the whole operation if push notification fails
+        }
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Create notification exception:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  updateNotificationStatus: async (notificationId: string, status: string) => {
+    if (!ENV.ENABLE_SUPABASE) {
+      return { data: { success: true, message: 'Mock: Notification updated' }, error: null };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .update({ status })
+        .eq('id', notificationId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Update notification error:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Update notification exception:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  getUserNotifications: async (userId: string) => {
+    if (!ENV.ENABLE_SUPABASE) {
+      return { data: [], error: null };
+    }
+
+    try {
+      // Get notifications for the user
+      const { data: notificationsData, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Get user notifications error:', error);
+        return { data: null, error };
+      }
+
+      if (!notificationsData || notificationsData.length === 0) {
+        return { data: [], error: null };
+      }
+
+      // Get unique game IDs and user IDs
+      const gameIds = [...new Set(notificationsData.map((n: any) => n.game_id))];
+      const userIds = [...new Set(notificationsData.map((n: any) => n.invited_by))];
+
+      // Fetch game details
+      const { data: gamesData } = await supabase
+        .from('bookings')
+        .select('id, pitch_name, date, time, pitch_location')
+        .in('id', gameIds);
+
+      // Fetch user profiles
+      const { data: usersData } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
+
+      // Transform the data
+      const transformedData = notificationsData.map((notification: any) => {
+        const game = gamesData?.find((g: any) => g.id === notification.game_id);
+        const inviter = usersData?.find((u: any) => u.id === notification.invited_by);
+        
+        return {
+          ...notification,
+          games: game,
+          inviter: inviter
+        };
+      });
+
+      return { data: transformedData, error: null };
+    } catch (error) {
+      console.error('Get user notifications exception:', error);
+      return { data: null, error: error as Error };
+    }
+  },
 
   // Team Chat Helpers
   ensureTeamChatRoom: async (teamId: string) => {
@@ -1470,19 +1617,7 @@ export const db = {
             .eq('id', user.id)
             .single();
 
-          // Send push notifications to team members (non-blocking)
-          const senderName = profile?.username || profile?.full_name || 'Someone';
-          await TeamNotificationService.notifyTeamMembers(
-            teamId,
-            user.id,
-            `New message from ${senderName}`,
-            content.length > 50 ? `${content.substring(0, 50)}...` : content,
-            {
-              type: 'team_chat_message',
-              team_id: teamId,
-              message_id: data.id,
-            }
-          );
+          // Team notifications have been removed from the app
         } catch (pushError) {
           console.log('Team chat push notification skipped - this is expected in Expo Go');
         }
