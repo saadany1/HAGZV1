@@ -17,6 +17,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import PushNotificationTester from '../components/PushNotificationTester';
+import { gameInvitationService } from '../services/gameInvitationService';
 
 type MoreScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'More'>,
@@ -28,10 +29,21 @@ const MoreScreen: React.FC = () => {
   const [showSignOutModal, setShowSignOutModal] = React.useState(false);
   const [showPushTester, setShowPushTester] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   useEffect(() => {
     checkAdminStatus();
+    loadNotifications();
   }, []);
+
+  // Refresh notifications when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadNotifications();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const checkAdminStatus = async () => {
     try {
@@ -41,6 +53,117 @@ const MoreScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('Error checking admin status:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    setLoadingNotifications(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userNotifications, error } = await supabase
+        .from('notifications')
+        .select(`
+          *,
+          game:bookings(
+            id,
+            pitch_name,
+            pitch_location,
+            date,
+            time,
+            max_players
+          ),
+          inviter:user_profiles!notifications_invited_by_fkey(
+            id,
+            full_name,
+            username
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error loading notifications:', error);
+        return;
+      }
+
+      setNotifications(userNotifications || []);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleAcceptInvitation = async (notification: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Join the game
+      const { error: joinError } = await supabase
+        .from('booking_members')
+        .insert({
+          booking_id: notification.game_id,
+          user_id: user.id,
+          role: 'player',
+          status: 'confirmed',
+          joined_at: new Date().toISOString()
+        });
+
+      if (joinError) {
+        console.error('Error joining game:', joinError);
+        Alert.alert('Error', 'Failed to join the game. Please try again.');
+        return;
+      }
+
+      // Update notification status
+      const { error: updateError } = await supabase
+        .from('notifications')
+        .update({ status: 'accepted' })
+        .eq('id', notification.id);
+
+      if (updateError) {
+        console.error('Error updating notification:', updateError);
+      }
+
+      // Refresh notifications
+      await loadNotifications();
+      
+      Alert.alert('Success!', 'You have joined the game successfully!');
+      
+      // Navigate to game details
+      navigation.navigate('GameDetails', { gameId: notification.game_id });
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      Alert.alert('Error', 'Failed to accept invitation. Please try again.');
+    }
+  };
+
+  const handleRejectInvitation = async (notification: any) => {
+    try {
+      // Update notification status
+      const { error } = await supabase
+        .from('notifications')
+        .update({ status: 'rejected' })
+        .eq('id', notification.id);
+
+      if (error) {
+        console.error('Error updating notification:', error);
+        Alert.alert('Error', 'Failed to reject invitation. Please try again.');
+        return;
+      }
+
+      // Refresh notifications
+      await loadNotifications();
+      
+      Alert.alert('Invitation Rejected', 'You have declined the game invitation.');
+    } catch (error) {
+      console.error('Error rejecting invitation:', error);
+      Alert.alert('Error', 'Failed to reject invitation. Please try again.');
     }
   };
 
@@ -102,6 +225,66 @@ const MoreScreen: React.FC = () => {
           <View style={styles.header}>
             <Text style={styles.title}>More</Text>
             <Text style={styles.subtitle}>Settings and additional options</Text>
+          </View>
+
+          {/* Notifications Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🔔 Notifications</Text>
+            
+            {loadingNotifications ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading notifications...</Text>
+              </View>
+            ) : notifications.length > 0 ? (
+              notifications.map((notification) => (
+                <View key={notification.id} style={styles.notificationItem}>
+                  <View style={styles.notificationContent}>
+                    <View style={styles.notificationHeader}>
+                      <Ionicons 
+                        name={notification.type === 'game_invitation' ? 'football' : 'notifications'} 
+                        size={20} 
+                        color="#4CAF50" 
+                      />
+                      <Text style={styles.notificationTitle}>{notification.title}</Text>
+                    </View>
+                    <Text style={styles.notificationMessage}>{notification.message}</Text>
+                    {notification.game && (
+                      <View style={styles.gameInfo}>
+                        <Text style={styles.gameName}>{notification.game.pitch_name}</Text>
+                        <Text style={styles.gameDetails}>
+                          {new Date(notification.game.date).toLocaleDateString()} at {notification.game.time}
+                        </Text>
+                        <Text style={styles.gameLocation}>{notification.game.pitch_location}</Text>
+                      </View>
+                    )}
+                    {notification.type === 'game_invitation' && (
+                      <View style={styles.invitationActions}>
+                        <TouchableOpacity
+                          style={styles.acceptButton}
+                          onPress={() => handleAcceptInvitation(notification)}
+                        >
+                          <Ionicons name="checkmark" size={16} color="#fff" />
+                          <Text style={styles.acceptButtonText}>Accept</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.rejectButton}
+                          onPress={() => handleRejectInvitation(notification)}
+                        >
+                          <Ionicons name="close" size={16} color="#fff" />
+                          <Text style={styles.rejectButtonText}>Decline</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyNotifications}>
+                <Ionicons name="notifications-outline" size={32} color="rgba(255, 255, 255, 0.3)" />
+                <Text style={styles.emptyText}>No notifications</Text>
+                <Text style={styles.emptySubtext}>You're all caught up!</Text>
+              </View>
+            )}
           </View>
 
           {/* Admin/Developer Section */}
@@ -426,6 +609,116 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // Notification styles
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+  },
+  notificationItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  notificationContent: {
+    padding: 16,
+  },
+  notificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 8,
+    flex: 1,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  gameInfo: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  gameName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginBottom: 4,
+  },
+  gameDetails: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 2,
+  },
+  gameLocation: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  invitationActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  acceptButton: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+  },
+  acceptButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  rejectButton: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  rejectButtonText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyNotifications: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
 });
 
