@@ -84,10 +84,10 @@ const MoreScreen: React.FC = () => {
         return;
       }
 
-      // Get inviter details for each notification and filter out declined
+      // Get inviter details for each notification and filter to only show pending
       const notificationsWithInviter = await Promise.all(
         (userNotifications || [])
-          .filter(notification => notification.status !== 'rejected') // Filter out declined invitations
+          .filter(notification => notification.status === 'pending') // Only show pending notifications
           .map(async (notification) => {
             if (notification.invited_by) {
               const { data: inviter } = await supabase
@@ -132,7 +132,7 @@ const MoreScreen: React.FC = () => {
         return;
       }
 
-      // Update notification status
+      // Update notification status to accepted
       const { error: updateError } = await supabase
         .from('notifications')
         .update({ status: 'accepted' })
@@ -140,17 +140,8 @@ const MoreScreen: React.FC = () => {
 
       if (updateError) {
         console.error('Error updating notification:', updateError);
-        console.log('Notification ID:', notification.id);
-        console.log('Status being set:', 'accepted');
-        // Try with a different status value
-        const { error: retryError } = await supabase
-          .from('notifications')
-          .update({ status: 'read' })
-          .eq('id', notification.id);
-        
-        if (retryError) {
-          console.error('Retry also failed:', retryError);
-        }
+        Alert.alert('Error', 'Failed to accept invitation. Please try again.');
+        return;
       }
 
       // Refresh notifications
@@ -168,27 +159,16 @@ const MoreScreen: React.FC = () => {
 
   const handleRejectInvitation = async (notification: any) => {
     try {
-      // Update notification status
+      // Update notification status to declined
       const { error } = await supabase
         .from('notifications')
-        .update({ status: 'rejected' })
+        .update({ status: 'declined' })
         .eq('id', notification.id);
 
       if (error) {
         console.error('Error updating notification:', error);
-        console.log('Notification ID:', notification.id);
-        console.log('Status being set:', 'rejected');
-        // Try with a different status value
-        const { error: retryError } = await supabase
-          .from('notifications')
-          .update({ status: 'read' })
-          .eq('id', notification.id);
-        
-        if (retryError) {
-          console.error('Retry also failed:', retryError);
-          Alert.alert('Error', 'Failed to reject invitation. Please try again.');
-          return;
-        }
+        Alert.alert('Error', 'Failed to reject invitation. Please try again.');
+        return;
       }
 
       // Refresh notifications (declined invitations will be filtered out)
@@ -271,38 +251,10 @@ const MoreScreen: React.FC = () => {
               </View>
             ) : notifications.length > 0 ? (
               notifications.map((notification) => {
-                const getStatusColor = (status: string) => {
-                  switch (status) {
-                    case 'pending': return '#FF9800';
-                    case 'accepted': return '#4CAF50';
-                    case 'rejected': return '#f44336';
-                    default: return 'rgba(255, 255, 255, 0.5)';
-                  }
-                };
-
-                const getStatusIcon = (status: string) => {
-                  switch (status) {
-                    case 'pending': return 'time';
-                    case 'accepted': return 'checkmark-circle';
-                    case 'rejected': return 'close-circle';
-                    default: return 'notifications';
-                  }
-                };
-
-                const getStatusText = (status: string) => {
-                  switch (status) {
-                    case 'pending': return 'Pending';
-                    case 'accepted': return 'Accepted';
-                    case 'rejected': return 'Declined';
-                    default: return 'Unknown';
-                  }
-                };
+                // Since we only show pending notifications, we don't need status functions
 
                 return (
-                  <View key={notification.id} style={[
-                    styles.notificationItem,
-                    notification.status !== 'pending' && styles.notificationItemInactive
-                  ]}>
+                  <View key={notification.id} style={styles.notificationItem}>
                     <View style={styles.notificationContent}>
                       <View style={styles.notificationHeader}>
                         <Ionicons 
@@ -311,14 +263,6 @@ const MoreScreen: React.FC = () => {
                           color="#4CAF50" 
                         />
                         <Text style={styles.notificationTitle}>{notification.title}</Text>
-                        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(notification.status) }]}>
-                          <Ionicons 
-                            name={getStatusIcon(notification.status) as any} 
-                            size={10} 
-                            color="#fff" 
-                          />
-                          <Text style={styles.statusText}>{getStatusText(notification.status)}</Text>
-                        </View>
                       </View>
                       <Text style={styles.notificationMessage}>{notification.message}</Text>
                       {notification.game && (
@@ -334,24 +278,22 @@ const MoreScreen: React.FC = () => {
                           by {notification.inviter.full_name || notification.inviter.username || 'Unknown'}
                         </Text>
                       )}
-                      {notification.type === 'game_invitation' && notification.status === 'pending' && (
-                        <View style={styles.invitationActions}>
-                          <TouchableOpacity
-                            style={styles.acceptButton}
-                            onPress={() => handleAcceptInvitation(notification)}
-                          >
-                            <Ionicons name="checkmark" size={14} color="#fff" />
-                            <Text style={styles.acceptButtonText}>Accept</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.rejectButton}
-                            onPress={() => handleRejectInvitation(notification)}
-                          >
-                            <Ionicons name="close" size={14} color="#fff" />
-                            <Text style={styles.rejectButtonText}>Decline</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
+                      <View style={styles.invitationActions}>
+                        <TouchableOpacity
+                          style={styles.acceptButton}
+                          onPress={() => handleAcceptInvitation(notification)}
+                        >
+                          <Ionicons name="checkmark" size={14} color="#fff" />
+                          <Text style={styles.acceptButtonText}>Accept</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.rejectButton}
+                          onPress={() => handleRejectInvitation(notification)}
+                        >
+                          <Ionicons name="close" size={14} color="#fff" />
+                          <Text style={styles.rejectButtonText}>Decline</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 );
@@ -794,22 +736,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.4)',
   },
   // Additional notification styles
-  notificationItemInactive: {
-    opacity: 0.7,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-  },
   inviterText: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.6)',
