@@ -191,16 +191,37 @@ class GameInvitationService {
    */
   private formatDateTime(date: string, time: string): string {
     try {
-      const dateTime = new Date(`${date}T${time}`);
-      return dateTime.toLocaleString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
+      // Handle different date formats
+      let formattedDate = date;
+      let formattedTime = time;
+      
+      // If date is in YYYY-MM-DD format, format it nicely
+      if (date.includes('-')) {
+        const dateObj = new Date(date);
+        if (!isNaN(dateObj.getTime())) {
+          formattedDate = dateObj.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric'
+          });
+        }
+      }
+      
+      // If time is in HH:MM format, format it nicely
+      if (time.includes(':')) {
+        const timeObj = new Date(`2000-01-01T${time}`);
+        if (!isNaN(timeObj.getTime())) {
+          formattedTime = timeObj.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+        }
+      }
+      
+      return `${formattedDate} at ${formattedTime}`;
     } catch (error) {
+      console.log('Date formatting error:', error);
       return `${date} at ${time}`;
     }
   }
