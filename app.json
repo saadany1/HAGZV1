@@ -61,7 +61,11 @@
           "sounds": ["./assets/notification_sound.wav"]
         }
       ],
-      "./plugins/withGoogleServices.js"
+      [
+        "@react-native-firebase/app"
+      ],
+      "./plugins/withGoogleServices.js",
+      "./plugins/withFirebaseManifestFix.js"
     ],
     "extra": {
       "eas": {
