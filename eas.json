@@ -13,7 +13,14 @@
         "buildType": "apk"
       }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "GOOGLE_SERVICES_JSON": "$GOOGLE_SERVICES_JSON"
+      },
+      "hooks": {
+        "prebuild": "node scripts/write-google-services.js"
+      }
+    }
   },
   "submit": {
     "production": {}
