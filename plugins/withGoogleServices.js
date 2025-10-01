@@ -24,8 +24,8 @@ const withGoogleServices = (config) => {
     async (config) => {
       const googleServicesJson = process.env.GOOGLE_SERVICES_JSON;
       
-      if (googleServicesJson) {
-        // Also write to android app directory during the build
+      if (googleServicesJson && googleServicesJson !== '$GOOGLE_SERVICES_JSON') {
+        // Write to android app directory during the build
         const androidAppPath = path.join(config.modRequest.platformProjectRoot, 'app', 'google-services.json');
         
         // Ensure the directory exists
@@ -37,6 +37,8 @@ const withGoogleServices = (config) => {
         // Write the google-services.json file
         fs.writeFileSync(androidAppPath, googleServicesJson);
         console.log('✅ Successfully wrote google-services.json to android app directory from environment variable');
+      } else {
+        console.warn('⚠️ GOOGLE_SERVICES_JSON environment variable not found or contains placeholder during Android build');
       }
       
       return config;
