@@ -81,9 +81,8 @@ const MoreScreen: React.FC = () => {
           )
         `)
         .eq('user_id', user.id)
-        .eq('status', 'pending')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (error) {
         console.error('Error loading notifications:', error);
@@ -236,48 +235,98 @@ const MoreScreen: React.FC = () => {
                 <Text style={styles.loadingText}>Loading notifications...</Text>
               </View>
             ) : notifications.length > 0 ? (
-              notifications.map((notification) => (
-                <View key={notification.id} style={styles.notificationItem}>
-                  <View style={styles.notificationContent}>
-                    <View style={styles.notificationHeader}>
-                      <Ionicons 
-                        name={notification.type === 'game_invitation' ? 'football' : 'notifications'} 
-                        size={20} 
-                        color="#4CAF50" 
-                      />
-                      <Text style={styles.notificationTitle}>{notification.title}</Text>
+              notifications.map((notification) => {
+                const getStatusColor = (status: string) => {
+                  switch (status) {
+                    case 'pending': return '#FF9800';
+                    case 'accepted': return '#4CAF50';
+                    case 'rejected': return '#f44336';
+                    default: return 'rgba(255, 255, 255, 0.5)';
+                  }
+                };
+
+                const getStatusIcon = (status: string) => {
+                  switch (status) {
+                    case 'pending': return 'time';
+                    case 'accepted': return 'checkmark-circle';
+                    case 'rejected': return 'close-circle';
+                    default: return 'notifications';
+                  }
+                };
+
+                const getStatusText = (status: string) => {
+                  switch (status) {
+                    case 'pending': return 'Pending';
+                    case 'accepted': return 'Accepted';
+                    case 'rejected': return 'Declined';
+                    default: return 'Unknown';
+                  }
+                };
+
+                return (
+                  <View key={notification.id} style={[
+                    styles.notificationItem,
+                    notification.status !== 'pending' && styles.notificationItemInactive
+                  ]}>
+                    <View style={styles.notificationContent}>
+                      <View style={styles.notificationHeader}>
+                        <Ionicons 
+                          name={notification.type === 'game_invitation' ? 'football' : 'notifications'} 
+                          size={20} 
+                          color="#4CAF50" 
+                        />
+                        <Text style={styles.notificationTitle}>{notification.title}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(notification.status) }]}>
+                          <Ionicons 
+                            name={getStatusIcon(notification.status) as any} 
+                            size={12} 
+                            color="#fff" 
+                          />
+                          <Text style={styles.statusText}>{getStatusText(notification.status)}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.notificationMessage}>{notification.message}</Text>
+                      {notification.game && (
+                        <View style={styles.gameInfo}>
+                          <Text style={styles.gameName}>{notification.game.pitch_name}</Text>
+                          <Text style={styles.gameDetails}>
+                            {new Date(notification.game.date).toLocaleDateString()} at {notification.game.time}
+                          </Text>
+                          <Text style={styles.gameLocation}>{notification.game.pitch_location}</Text>
+                        </View>
+                      )}
+                      {notification.inviter && (
+                        <View style={styles.inviterInfo}>
+                          <Text style={styles.inviterText}>
+                            Invited by: {notification.inviter.full_name || notification.inviter.username || 'Unknown'}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={styles.notificationTime}>
+                        {new Date(notification.created_at).toLocaleString()}
+                      </Text>
+                      {notification.type === 'game_invitation' && notification.status === 'pending' && (
+                        <View style={styles.invitationActions}>
+                          <TouchableOpacity
+                            style={styles.acceptButton}
+                            onPress={() => handleAcceptInvitation(notification)}
+                          >
+                            <Ionicons name="checkmark" size={16} color="#fff" />
+                            <Text style={styles.acceptButtonText}>Accept</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.rejectButton}
+                            onPress={() => handleRejectInvitation(notification)}
+                          >
+                            <Ionicons name="close" size={16} color="#fff" />
+                            <Text style={styles.rejectButtonText}>Decline</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
-                    <Text style={styles.notificationMessage}>{notification.message}</Text>
-                    {notification.game && (
-                      <View style={styles.gameInfo}>
-                        <Text style={styles.gameName}>{notification.game.pitch_name}</Text>
-                        <Text style={styles.gameDetails}>
-                          {new Date(notification.game.date).toLocaleDateString()} at {notification.game.time}
-                        </Text>
-                        <Text style={styles.gameLocation}>{notification.game.pitch_location}</Text>
-                      </View>
-                    )}
-                    {notification.type === 'game_invitation' && (
-                      <View style={styles.invitationActions}>
-                        <TouchableOpacity
-                          style={styles.acceptButton}
-                          onPress={() => handleAcceptInvitation(notification)}
-                        >
-                          <Ionicons name="checkmark" size={16} color="#fff" />
-                          <Text style={styles.acceptButtonText}>Accept</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.rejectButton}
-                          onPress={() => handleRejectInvitation(notification)}
-                        >
-                          <Ionicons name="close" size={16} color="#fff" />
-                          <Text style={styles.rejectButtonText}>Decline</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
                   </View>
-                </View>
-              ))
+                );
+              })
             ) : (
               <View style={styles.emptyNotifications}>
                 <Ionicons name="notifications-outline" size={32} color="rgba(255, 255, 255, 0.3)" />
@@ -719,6 +768,37 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.4)',
+  },
+  // Additional notification styles
+  notificationItemInactive: {
+    opacity: 0.7,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  inviterInfo: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  inviterText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontStyle: 'italic',
+  },
+  notificationTime: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginTop: 4,
   },
 });
 
