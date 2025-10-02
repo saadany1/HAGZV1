@@ -140,8 +140,17 @@ const PushNotificationTester: React.FC<PushNotificationTesterProps> = ({ onClose
     }
   };
 
+
   const handleSendCustomNotification = async () => {
     try {
+      console.log('🔍 Sending customnotification to:', getEndpointUrl(SERVER_CONFIG.ENDPOINTS.BROADCAST_NOTIFICATION));
+      console.log('🔍 Payload:', {
+        title: customTitle,
+        message: customMessage,
+        data: { screen: customScreen },
+        sound: withSound
+      });
+
       // Send to all users via server
       const response = await fetch(getEndpointUrl(SERVER_CONFIG.ENDPOINTS.BROADCAST_NOTIFICATION), {
         method: 'POST',
@@ -156,15 +165,20 @@ const PushNotificationTester: React.FC<PushNotificationTesterProps> = ({ onClose
         })
       });
 
+      console.log('🔍 Server response status:', response.status);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('🔍 Server response:', result);
         Alert.alert('Success!', `Custom notification sent to ${result.sentCount} users!`);
       } else {
-        Alert.alert('Failed', 'Could not send custom notification to all users');
+        const errorText = await response.text();
+        console.error('🔍 Server error:', errorText);
+        Alert.alert('Failed', `Server error: ${response.status} - ${errorText}`);
       }
     } catch (error) {
       console.error('Custom notification failed:', error);
-      Alert.alert('Error', 'Failed to send custom notification');
+      Alert.alert('Error', `Failed to send custom notification: ${error.message}`);
     }
   };
 

@@ -155,6 +155,21 @@ export async function sendTestLocalNotification() {
       return null;
     }
     
+    // Ensure the NL notification channel exists
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('NL', {
+        name: 'HAGZ Notifications',
+        description: 'Notifications for HAGZ football matches and invitations',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+        sound: 'notification_sound.wav',
+        enableVibrate: true,
+        enableLights: true,
+        showBadge: true,
+      });
+    }
+
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: '🧪 AAB Test Notification',
@@ -167,6 +182,7 @@ export async function sendTestLocalNotification() {
         },
         sound: 'notification_sound.wav',
         priority: 'high',
+        ...(Platform.OS === 'android' && { android: { channelId: 'NL' } }),
       },
       trigger: null, // Show immediately
     });
@@ -190,6 +206,21 @@ export async function sendCustomLocalNotification(
   }
 ) {
   try {
+    // Ensure the NL notification channel exists
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('NL', {
+        name: 'HAGZ Notifications',
+        description: 'Notifications for HAGZ football matches and invitations',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+        sound: 'notification_sound.wav',
+        enableVibrate: true,
+        enableLights: true,
+        showBadge: true,
+      });
+    }
+
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title,
@@ -202,6 +233,7 @@ export async function sendCustomLocalNotification(
         sound: options?.sound !== false ? 'notification_sound.wav' : undefined,
         priority: options?.priority || 'high',
         vibrate: options?.vibrate !== false ? [0, 250, 250, 250] : undefined,
+        ...(Platform.OS === 'android' && { android: { channelId: 'NL' } }),
       },
       trigger: null, // Show immediately
     });
