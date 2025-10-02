@@ -2,7 +2,7 @@
   "expo": {
     "name": "HAGZ",
     "slug": "HagzApp",
-    "version": "24",
+    "version": "25",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -28,7 +28,7 @@
       },
       "icon": "./assets/icon.png",
         "package": "com.saadany2.hagzfootballapp",
-      "versionCode": 24,
+      "versionCode": 25,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
