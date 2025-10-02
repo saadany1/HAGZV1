@@ -17,6 +17,11 @@ const expo = new Expo();
  */
 async function sendPushNotifications(tokens, title, body, data = {}) {
   console.log(`📤 Sending push notifications to ${tokens.length} devices...`);
+  console.log('🔍 Debug - Token validation:', tokens.map(token => ({
+    token: token.substring(0, 20) + '...',
+    isValid: Expo.isExpoPushToken(token),
+    length: token.length
+  })));
 
   // Create the messages that you want to send to clients
   const messages = [];
@@ -36,6 +41,7 @@ async function sendPushNotifications(tokens, title, body, data = {}) {
       body: body,
       data: data,
       priority: 'high',
+      channelId: 'NL', // Use HAGZ notification channel instead of default
     });
   }
 

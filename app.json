@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "HagzApp",
+    "name": "HAGZ",
     "slug": "HagzApp",
-    "version": "21",
+    "version": "24",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -28,12 +28,15 @@
       },
       "icon": "./assets/icon.png",
         "package": "com.saadany2.hagzfootballapp",
-      "versionCode": 21,
+      "versionCode": 24,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK"
       ],
       "googleServicesFile": "./google-services.json"
     },
@@ -55,10 +58,11 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/notification_icon.png",
           "color": "#4CAF50",
-          "defaultChannel": "default",
-          "sounds": ["./assets/notification_sound.wav"]
+          "defaultChannel": "NL",
+          "sounds": ["./assets/notification_sound.wav"],
+          "mode": "production"
         }
       ],
       [

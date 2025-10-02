@@ -19,6 +19,7 @@ import {
   sendCustomLocalNotification,
   getCurrentPushToken 
 } from '../services/pushNotifications';
+import NotificationDebugger from '../services/notificationDebugger';
 import { matchReminderService } from '../services/matchReminderService';
 import { getEndpointUrl, SERVER_CONFIG } from '../config/server';
 
@@ -264,6 +265,35 @@ const PushNotificationTester: React.FC<PushNotificationTesterProps> = ({ onClose
     }
   };
 
+  const handleRunDiagnostic = async () => {
+    try {
+      setLoading(true);
+      console.log('🔧 Running full notification diagnostic...');
+      
+      const result = await NotificationDebugger.runFullDiagnostic();
+      
+      Alert.alert(
+        'Diagnostic Complete',
+        result.summary,
+        [
+          { text: 'OK' },
+          { 
+            text: 'View Details', 
+            onPress: () => {
+              console.log('📊 Full Diagnostic Result:', result);
+              Alert.alert('Diagnostic Details', 'Check console for full diagnostic information');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Diagnostic failed:', error);
+      Alert.alert('Diagnostic Failed', 'Could not run notification diagnostic');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -480,6 +510,17 @@ const PushNotificationTester: React.FC<PushNotificationTesterProps> = ({ onClose
             </View>
             <Text style={styles.actionCardTitle}>Invite Test</Text>
             <Text style={styles.actionCardSubtitle}>Game invitations</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionCard} 
+            onPress={handleRunDiagnostic}
+          >
+            <View style={styles.actionCardIcon}>
+              <Ionicons name="bug" size={24} color="#FF5722" />
+            </View>
+            <Text style={styles.actionCardTitle}>Diagnostic</Text>
+            <Text style={styles.actionCardSubtitle}>Full AAB test</Text>
           </TouchableOpacity>
         </View>
 

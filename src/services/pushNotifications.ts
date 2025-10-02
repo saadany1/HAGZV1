@@ -17,6 +17,15 @@ Notifications.setNotificationHandler({
 
 export async function registerForPushNotificationsAsync(userId?: string) {
   try {
+    console.log('🔍 Starting push notification registration...');
+    console.log('Device info:', {
+      isDevice: Device.isDevice,
+      platform: Platform.OS,
+      appOwnership: Constants.appOwnership,
+      projectId: (Constants.expoConfig?.extra as any)?.eas?.projectId,
+      expoConfig: Constants.expoConfig?.extra
+    });
+
     if (!Device.isDevice) {
       console.warn('Must use physical device for push notifications');
       return null;
@@ -35,48 +44,84 @@ export async function registerForPushNotificationsAsync(userId?: string) {
       return null;
     }
 
+    console.log('✅ Notification permissions granted');
+
     // 2) Get Expo push token (this token is what Expo Push Service expects)
-    // Use projectId from app.json extra.eas.projectId if available
     const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId;
-    console.log('Project ID for push token:', projectId);
+    const isExpoGo = Constants.appOwnership === 'expo';
+    const isStandalone = Constants.appOwnership === 'standalone';
+    
+    console.log('Environment detection:', {
+      projectId,
+      isExpoGo,
+      isStandalone,
+      appOwnership: Constants.appOwnership
+    });
     
     let tokenResponse;
     try {
-      tokenResponse = await Notifications.getExpoPushTokenAsync(
-        projectId ? { projectId } : undefined
-      );
+      if (isStandalone && projectId) {
+        // For standalone builds, use the project ID
+        console.log('📱 Using project ID for standalone build:', projectId);
+        tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+      } else if (isExpoGo) {
+        // For Expo Go, use the default method
+        console.log('📱 Using default method for Expo Go');
+        tokenResponse = await Notifications.getExpoPushTokenAsync();
+      } else {
+        // Fallback for standalone without project ID
+        console.log('📱 Using fallback method (no project ID)');
+        tokenResponse = await Notifications.getExpoPushTokenAsync();
+      }
     } catch (error) {
       console.error('Error getting Expo push token:', error);
-      // Fallback: try without projectId
+      // Final fallback
+      console.log('📱 Using final fallback method');
       tokenResponse = await Notifications.getExpoPushTokenAsync();
     }
+    
     const token = tokenResponse.data;
-    console.log('Expo push token:', token);
+    console.log('✅ Expo push token generated:', token);
 
     // 3) Persist token in Supabase user_profiles.push_token
     if (userId && token) {
+      console.log('💾 Saving push token to database for user:', userId);
       const { error } = await supabase
         .from('user_profiles')
         .update({ push_token: token })
         .eq('id', userId);
 
       if (error) {
-        console.error('Failed to save push token to supabase:', error.message);
+        console.error('❌ Failed to save push token to supabase:', error.message);
       } else {
-        console.log('✅ Push token saved to database');
+        console.log('✅ Push token saved to database successfully');
       }
+    } else {
+      console.warn('⚠️ No userId or token provided, skipping database save');
     }
 
     // 4) Create Android channel (important for Android behavior)
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
+      console.log('📱 Creating Android notification channel...');
+      try {
+        await Notifications.setNotificationChannelAsync('NL', {
+          name: 'HAGZ Notifications',
+          description: 'Notifications for HAGZ football matches and invitations',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+          sound: 'notification_sound.wav',
+          enableVibrate: true,
+          enableLights: true,
+          showBadge: true,
+        });
+        console.log('✅ Android notification channel created');
+      } catch (error) {
+        console.error('❌ Failed to create Android notification channel:', error);
+      }
     }
 
+    console.log('🎉 Push notification registration completed successfully');
     return token;
   } catch (err) {
     console.error('registerForPushNotificationsAsync error:', err);
@@ -101,16 +146,31 @@ export function listenForNotificationResponses(onResponse: (r: Notifications.Not
 // Test function to send a local notification
 export async function sendTestLocalNotification() {
   try {
+    console.log('🧪 Sending test local notification...');
+    
+    // Check permissions first
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      console.error('❌ Notification permissions not granted');
+      return null;
+    }
+    
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: '🧪 Test Notification',
-        body: 'This is a test notification to verify the system works!',
-        data: { screen: 'More', test: true },
+        title: '🧪 AAB Test Notification',
+        body: 'This is a test notification to verify the system works in AAB build!',
+        data: { 
+          screen: 'More', 
+          test: true,
+          timestamp: new Date().toISOString(),
+          buildType: Constants.appOwnership
+        },
         sound: 'notification_sound.wav',
+        priority: 'high',
       },
       trigger: null, // Show immediately
     });
-    console.log('✅ Test local notification sent:', notificationId);
+    console.log('✅ Test local notification sent successfully:', notificationId);
     return notificationId;
   } catch (error) {
     console.error('❌ Error sending test notification:', error);
@@ -156,26 +216,48 @@ export async function sendCustomLocalNotification(
 // Get current push token for testing
 export async function getCurrentPushToken(): Promise<string | null> {
   try {
+    console.log('🔍 Getting current push token...');
+    
     if (!Device.isDevice) {
+      console.warn('Not a physical device, cannot get push token');
       return null;
     }
 
     const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId;
-    console.log('Project ID for push token:', projectId);
+    const isExpoGo = Constants.appOwnership === 'expo';
+    const isStandalone = Constants.appOwnership === 'standalone';
+    
+    console.log('Environment for token:', {
+      projectId,
+      isExpoGo,
+      isStandalone,
+      appOwnership: Constants.appOwnership
+    });
     
     let tokenResponse;
     try {
-      tokenResponse = await Notifications.getExpoPushTokenAsync(
-        projectId ? { projectId } : undefined
-      );
+      if (isStandalone && projectId) {
+        console.log('📱 Getting token with project ID for standalone build');
+        tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+      } else if (isExpoGo) {
+        console.log('📱 Getting token for Expo Go');
+        tokenResponse = await Notifications.getExpoPushTokenAsync();
+      } else {
+        console.log('📱 Getting token with fallback method');
+        tokenResponse = await Notifications.getExpoPushTokenAsync();
+      }
     } catch (error) {
       console.error('Error getting Expo push token:', error);
-      // Fallback: try without projectId
+      // Final fallback
+      console.log('📱 Using final fallback for token');
       tokenResponse = await Notifications.getExpoPushTokenAsync();
     }
-    return tokenResponse.data;
+    
+    const token = tokenResponse.data;
+    console.log('✅ Current push token retrieved:', token);
+    return token;
   } catch (error) {
-    console.error('Error getting current push token:', error);
+    console.error('❌ Error getting current push token:', error);
     return null;
   }
 }

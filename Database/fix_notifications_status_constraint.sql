@@ -12,3 +12,8 @@ CHECK (status IN ('pending', 'accepted', 'rejected', 'read', 'unread'));
 UPDATE notifications 
 SET status = 'pending' 
 WHERE status NOT IN ('pending', 'accepted', 'rejected', 'read', 'unread');
+
+
+
+
+
