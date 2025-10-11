@@ -3,43 +3,11 @@
     "name": "HAGZ",
     "slug": "HagzApp",
     "version": "34",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#4CAF50"
-    },
     "newArchEnabled": true,
     "jsEngine": "hermes",
     "assetBundlePatterns": [
       "**/*"
     ],
-    "ios": {
-      "supportsTablet": true,
-      "icon": "./assets/icon.png"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundImage": "./assets/icon.png",
-        "backgroundColor": "#4CAF50"
-      },
-      "icon": "./assets/icon.png",
-        "package": "com.saadany2.hagzfootballapp",
-      "versionCode": 34,
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.VIBRATE",
-        "android.permission.WAKE_LOCK"
-      ],
-      "googleServicesFile": "./android/app/google-services.json"
-    },
     "web": {
       "favicon": "./assets/icon.png",
       "bundler": "metro"
@@ -47,25 +15,6 @@
     "experiments": {
       "typedRoutes": true
     },
-    "plugins": [
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "The app accesses your photos to let you select profile pictures and share images in the app.",
-          "cameraPermission": "The app accesses your camera to let you take profile pictures and share photos in the app."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification_icon.png",
-          "color": "#4CAF50",
-          "defaultChannel": "NL",
-          "sounds": ["./assets/notification_sound.wav"],
-          "mode": "production"
-        }
-      ],
-    ],
     "extra": {
       "eas": {
         "projectId": "09cc7470-3c53-4046-9782-ff80cf1e5b2c"
