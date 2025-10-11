@@ -38,7 +38,7 @@
         "android.permission.VIBRATE",
         "android.permission.WAKE_LOCK"
       ],
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./android/app/google-services.json"
     },
     "web": {
       "favicon": "./assets/icon.png",
@@ -65,11 +65,6 @@
           "mode": "production"
         }
       ],
-      [
-        "@react-native-firebase/app"
-      ],
-      "./plugins/withGoogleServices.js",
-      "./plugins/withFirebaseManifestFix.js"
     ],
     "extra": {
       "eas": {
