@@ -1,4 +1,4 @@
-// Server configuration for push notifications
+// Server configuration (push notifications removed)
 export const SERVER_CONFIG = {
   // Update this URL to your actual server URL
   BASE_URL: 'https://web-production-2936d.up.railway.app', // Working server
@@ -8,9 +8,6 @@ export const SERVER_CONFIG = {
   
   // Endpoints
   ENDPOINTS: {
-    BROADCAST_NOTIFICATION: '/send-broadcast-notification',
-    GAME_INVITATION: '/send-game-invitation',
-    USER_NOTIFICATION: '/send-user-notification',
     HEALTH: '/health'
   }
 };

@@ -16,7 +16,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
-import PushNotificationTester from '../components/PushNotificationTester';
+// Push Notification Tester removed
 import { gameInvitationService } from '../services/gameInvitationService';
 
 type MoreScreenNavigationProp = CompositeNavigationProp<
@@ -27,7 +27,7 @@ type MoreScreenNavigationProp = CompositeNavigationProp<
 const MoreScreen: React.FC = () => {
   const navigation = useNavigation<MoreScreenNavigationProp>();
   const [showSignOutModal, setShowSignOutModal] = React.useState(false);
-  const [showPushTester, setShowPushTester] = useState(false);
+  // Push tester removed
   const [isAdmin, setIsAdmin] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
@@ -338,25 +338,7 @@ const MoreScreen: React.FC = () => {
           </View>
 
           {/* Admin/Developer Section */}
-          {isAdmin && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🔧 Developer Tools</Text>
-              
-              <TouchableOpacity 
-                style={styles.adminButton} 
-                onPress={() => setShowPushTester(true)}
-              >
-                <View style={styles.menuIcon}>
-                  <Ionicons name="notifications" size={24} color="#fff" />
-                </View>
-                <View style={styles.menuContent}>
-                  <Text style={styles.menuTitle}>Push Notification Tester</Text>
-                  <Text style={styles.menuSubtitle}>Test push notification functionality</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Developer Tools section removed */}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account</Text>
@@ -459,15 +441,7 @@ const MoreScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* Push Notification Tester Modal */}
-      <Modal
-        visible={showPushTester}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowPushTester(false)}
-      >
-        <PushNotificationTester onClose={() => setShowPushTester(false)} />
-      </Modal>
+      {/* Push Notification Tester removed */}
 
     </ImageBackground>
   );

@@ -3,7 +3,7 @@
 
 import { supabase } from '../lib/supabase';
 import { getEndpointUrl, SERVER_CONFIG } from '../config/server';
-import { sendCustomLocalNotification } from './pushNotifications';
+// Push notifications removed
 
 interface GameInvitationData {
   user_id: string;
@@ -40,7 +40,7 @@ class GameInvitationService {
       // Get target user's push token
       const { data: targetUser, error: userError } = await supabase
         .from('user_profiles')
-        .select('id, push_token, full_name, email')
+        .select('id, full_name, email')
         .eq('id', targetUserId)
         .single();
 
@@ -75,14 +75,10 @@ class GameInvitationService {
       }
 
       // Send push notification if user has a valid token
-      if (targetUser.push_token) {
-        await this.sendPushNotification(targetUser, invitationDetails, notification.id);
-      } else {
-        console.log(`📱 No push token for user ${targetUserId}, skipping push notification`);
-      }
+      // Push notification sending removed
 
       // Send local notification if this is the current user (for testing)
-      await this.sendLocalNotificationIfCurrentUser(targetUserId, invitationDetails);
+      // Local notification removed
 
       console.log(`✅ Game invitation sent successfully to ${targetUser.email}`);
       return { success: true };
@@ -96,95 +92,12 @@ class GameInvitationService {
   /**
    * Send push notification for game invitation
    */
-  private async sendPushNotification(
-    targetUser: any,
-    invitationDetails: InvitationDetails,
-    notificationId: string
-  ) {
-    try {
-      const title = '⚽ Game Invitation';
-      const message = `${invitationDetails.inviterName} invited you to join a match at ${invitationDetails.pitchName} on ${this.formatDateTime(invitationDetails.gameDate, invitationDetails.gameTime)}`;
-
-      const notificationData = {
-        screen: 'GameDetails',
-        gameId: invitationDetails.gameId,
-        notificationId: notificationId,
-        type: 'game_invitation',
-        pitchName: invitationDetails.pitchName,
-        gameDate: invitationDetails.gameDate,
-        gameTime: invitationDetails.gameTime,
-        inviterName: invitationDetails.inviterName
-      };
-
-      console.log(`📱 Would send push notification to ${targetUser.push_token}:`, {
-        title,
-        message,
-        data: notificationData
-      });
-
-      // Send actual push notification via server
-      try {
-        const response = await fetch(getEndpointUrl(SERVER_CONFIG.ENDPOINTS.GAME_INVITATION), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            targetUserId: targetUser.id,
-            targetUserToken: targetUser.push_token,
-            title,
-            message,
-            data: notificationData
-          })
-        });
-
-        if (response.ok) {
-          console.log(`✅ Push notification sent successfully to ${targetUser.email}`);
-        } else {
-          console.error(`❌ Failed to send push notification to ${targetUser.email}`);
-        }
-      } catch (error) {
-        console.error(`❌ Error sending push notification to ${targetUser.email}:`, error);
-      }
-
-    } catch (error) {
-      console.error('❌ Error sending push notification:', error);
-    }
-  }
+  // Push notification method removed
 
   /**
    * Send local notification if this is the current user (for testing)
    */
-  private async sendLocalNotificationIfCurrentUser(
-    targetUserId: string,
-    invitationDetails: InvitationDetails
-  ) {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && user.id === targetUserId) {
-        const title = '⚽ Game Invitation';
-        const message = `${invitationDetails.inviterName} invited you to join a match at ${invitationDetails.pitchName}`;
-        
-        await sendCustomLocalNotification(
-          title,
-          message,
-          {
-            screen: 'GameDetails',
-            gameId: invitationDetails.gameId,
-            type: 'game_invitation'
-          },
-          {
-            sound: true,
-            priority: 'high'
-          }
-        );
-
-        console.log('📱 Local test notification sent to current user');
-      }
-    } catch (error) {
-      console.log('Note: Could not send local test notification:', error);
-    }
-  }
+  // Local notification method removed
 
   /**
    * Format date and time for display

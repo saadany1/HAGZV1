@@ -1393,20 +1393,7 @@ export const db = {
             if (gameData && inviterData) {
               const inviterName = inviterData.full_name || inviterData.email || 'Someone';
               
-              // Send local notification if this is the current user (for testing)
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user && user.id === notificationData.user_id) {
-                const { sendCustomLocalNotification } = await import('../services/pushNotifications');
-                await sendCustomLocalNotification(
-                  '⚽ Game Invitation',
-                  `${inviterName} invited you to join a match at ${gameData.pitch_name}`,
-                  {
-                    screen: 'GameDetails',
-                    gameId: gameData.id,
-                    type: 'game_invitation'
-                  },
-                  { sound: true, priority: 'high' }
-                );
+              // Push notifications removed - local notification sending disabled
               }
             }
           }

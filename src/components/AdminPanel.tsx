@@ -11,7 +11,7 @@ import {
   Switch
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import customPushService from '../services/customPushService';
+// Push notification features removed
 
 interface AdminStats {
   totalUsers: number;
@@ -29,7 +29,6 @@ export const AdminPanel: React.FC = () => {
     usersWithTokens: 0,
     totalNotifications: 0
   });
-  const [useLocalNotifications, setUseLocalNotifications] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [allUsers, setAllUsers] = useState<any[]>([]);
 
@@ -86,60 +85,7 @@ export const AdminPanel: React.FC = () => {
   };
 
   const sendNotificationToAllUsers = async () => {
-    if (!title.trim() || !body.trim()) {
-      Alert.alert('Error', 'Please enter both title and body');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      let successCount = 0;
-      let failCount = 0;
-
-      if (useLocalNotifications) {
-        // Send local notification to current device
-        Alert.alert('Local Notification', 'Local notifications will be sent to current device');
-        successCount++;
-      } else {
-        // Send to all users via custom service
-        for (const user of allUsers) {
-          try {
-            const result = await customPushService.sendNotificationToUser(user.id, {
-              title,
-              body,
-              data: data ? JSON.parse(data) : {},
-              sound: 'default'
-            });
-
-            if (result.success) {
-              successCount++;
-            } else {
-              failCount++;
-            }
-          } catch (error) {
-            failCount++;
-          }
-        }
-      }
-
-      Alert.alert(
-        'Notification Sent',
-        `Successfully sent to ${successCount} users${failCount > 0 ? `, ${failCount} failed` : ''}`
-      );
-
-      // Clear form
-      setTitle('');
-      setBody('');
-      setData('');
-      
-      // Reload stats
-      loadStats();
-    } catch (error) {
-      console.error('Error sending notification:', error);
-      Alert.alert('Error', 'Failed to send notification');
-    } finally {
-      setIsLoading(false);
-    }
+    Alert.alert('Info', 'Push notifications have been removed in this build.');
   };
 
   const sendNotificationToUser = async () => {
@@ -150,22 +96,7 @@ export const AdminPanel: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const result = await customPushService.sendNotificationToUser(selectedUserId, {
-        title,
-        body,
-        data: data ? JSON.parse(data) : {},
-        sound: 'default'
-      });
-
-      if (result.success) {
-        Alert.alert('Success', 'Notification sent to user');
-        setTitle('');
-        setBody('');
-        setData('');
-        loadStats();
-      } else {
-        Alert.alert('Error', result.message || 'Failed to send notification');
-      }
+      Alert.alert('Info', 'Push notifications have been removed in this build.');
     } catch (error) {
       console.error('Error sending notification to user:', error);
       Alert.alert('Error', 'Failed to send notification');
@@ -249,13 +180,7 @@ export const AdminPanel: React.FC = () => {
           numberOfLines={2}
         />
 
-        <View style={styles.switchContainer}>
-          <Text style={styles.switchLabel}>Use Local Notifications</Text>
-          <Switch
-            value={useLocalNotifications}
-            onValueChange={setUseLocalNotifications}
-          />
-        </View>
+        {/* Push notification controls removed */}
 
         <TouchableOpacity
           style={[styles.button, styles.primaryButton]}
@@ -265,9 +190,7 @@ export const AdminPanel: React.FC = () => {
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>
-              {useLocalNotifications ? 'Send Local Notification' : 'Send to All Users'}
-            </Text>
+            <Text style={styles.buttonText}>Send to All Users</Text>
           )}
         </TouchableOpacity>
       </View>
