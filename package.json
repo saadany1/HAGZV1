@@ -1,0 +1,20 @@
+{
+  "name": "hagzv5-push-notifications",
+  "version": "1.0.0",
+  "description": "Server-side push notification sender for HagzApp V5",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "node pushNotificationSender.js"
+  },
+  "dependencies": {
+    "expo-server-sdk": "^3.7.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "keywords": ["expo", "push-notifications", "hagz", "v5"],
+  "author": "HagzApp",
+  "license": "MIT"
+}
