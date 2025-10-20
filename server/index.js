@@ -58,8 +58,8 @@ app.post('/send-broadcast-notification', async (req, res) => {
 
     res.json({
       success: true,
-      sentCount: result.successCount,
-      failedCount: result.failureCount,
+      sentCount: result.success,
+      failedCount: result.failed,
       totalTokens: tokens.length
     });
 
@@ -83,8 +83,8 @@ app.post('/send-game-invitation', async (req, res) => {
 
     res.json({
       success: true,
-      sentCount: result.successCount,
-      failedCount: result.failureCount
+      sentCount: result.success,
+      failedCount: result.failed
     });
 
   } catch (error) {
@@ -118,8 +118,8 @@ app.post('/send-user-notification', async (req, res) => {
 
     res.json({
       success: true,
-      sentCount: result.successCount,
-      failedCount: result.failureCount
+      sentCount: result.success,
+      failedCount: result.failed
     });
 
   } catch (error) {
