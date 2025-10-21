@@ -8,6 +8,7 @@ import {
   Alert,
   ImageBackground,
   Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -18,6 +19,7 @@ import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 // Push Notification Tester removed
 import { gameInvitationService } from '../services/gameInvitationService';
+import { sendBroadcastNotification } from '../services/notifications';
 
 type MoreScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'More'>,
@@ -31,6 +33,9 @@ const MoreScreen: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
   useEffect(() => {
     checkAdminStatus();
@@ -338,7 +343,67 @@ const MoreScreen: React.FC = () => {
           </View>
 
           {/* Admin/Developer Section */}
-          {/* Developer Tools section removed */}
+          {isAdmin && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Admin Tools</Text>
+              <View style={styles.adminCard}>
+                <Text style={styles.adminLabel}>Broadcast title</Text>
+                <TextInput
+                  value={broadcastTitle}
+                  onChangeText={setBroadcastTitle}
+                  placeholder="Title"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  style={styles.input}
+                />
+                <Text style={styles.adminLabel}>Broadcast message</Text>
+                <TextInput
+                  value={broadcastMessage}
+                  onChangeText={setBroadcastMessage}
+                  placeholder="Message to all users"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  style={[styles.input, { height: 80 }]}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[styles.adminButton, isSendingBroadcast && { opacity: 0.7 }]}
+                  disabled={isSendingBroadcast}
+                  onPress={async () => {
+                    console.log('🎯 Send Broadcast button pressed');
+                    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+                      console.log('❌ Validation failed - missing title or message');
+                      Alert.alert('Validation', 'Title and message are required');
+                      return;
+                    }
+                    try {
+                      console.log('🚀 Starting broadcast process...');
+                      setIsSendingBroadcast(true);
+                      const result = await sendBroadcastNotification({
+                        title: broadcastTitle.trim(),
+                        message: broadcastMessage.trim(),
+                        sound: true,
+                      });
+                      console.log('📊 Broadcast result:', result);
+                      if (result.ok) {
+                        Alert.alert('Sent', `Broadcast sent to ${result.sentCount ?? 0} devices`);
+                        setBroadcastTitle('');
+                        setBroadcastMessage('');
+                      } else {
+                        Alert.alert('Error', result.error || 'Failed to send broadcast');
+                      }
+                    } catch (e) {
+                      console.error('💥 Unexpected error in broadcast:', e);
+                      Alert.alert('Error', 'Unexpected error while sending broadcast');
+                    } finally {
+                      setIsSendingBroadcast(false);
+                    }
+                  }}
+                >
+                  <Ionicons name="megaphone" size={16} color="#4CAF50" />
+                  <Text style={styles.adminButtonText}>{isSendingBroadcast ? 'Sending...' : 'Send Broadcast'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account</Text>
@@ -560,6 +625,34 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  adminButtonText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  adminCard: {
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  adminLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   // Confirmation Modal Styles
   modalOverlay: {

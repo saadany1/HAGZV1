@@ -1,7 +1,7 @@
 // Server configuration (push notifications removed)
 export const SERVER_CONFIG = {
   // Update this URL to your actual server URL
-  BASE_URL: 'https://web-production-2936d.up.railway.app', // Working server
+  BASE_URL: 'https://web-production-397d5.up.railway.app', // Working server
   
   // Local development URL (for testing)
   LOCAL_URL: 'http://localhost:3000',

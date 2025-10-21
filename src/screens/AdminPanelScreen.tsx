@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +17,6 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase, auth, db } from '../lib/supabase';
-import { fcmPushNotificationService, AdminFCMService } from '../services/fcmPushNotificationService';
 
 type AdminPanelNavigationProp = StackNavigationProp<RootStackParamList, 'AdminPanel'>;
 
@@ -24,6 +25,21 @@ interface AdminStats {
   totalTeams: number;
   totalMatches: number;
   activeTokens: number;
+}
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  push_token: string | null;
+  created_at: string;
+}
+
+interface NotificationTemplate {
+  id: string;
+  title: string;
+  message: string;
+  category: string;
 }
 
 const AdminPanelScreen: React.FC = () => {
@@ -35,22 +51,53 @@ const AdminPanelScreen: React.FC = () => {
     totalMatches: 0,
     activeTokens: 0,
   });
+  
+  // Notification states
   const [testMessage, setTestMessage] = useState('Test notification from admin panel');
   const [testTitle, setTestTitle] = useState('Admin Test');
+  const [notificationData, setNotificationData] = useState('');
+  
+  // User selection states
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  
+  // Notification templates
+  const [templates] = useState<NotificationTemplate[]>([
+    { id: '1', title: '🎉 New Match Available!', message: 'Check out the latest matches in your area!', category: 'Match' },
+    { id: '2', title: '⚽ Game Reminder', message: 'Your match is starting in 30 minutes!', category: 'Reminder' },
+    { id: '3', title: '🏆 Tournament Update', message: 'New tournament has been announced!', category: 'Tournament' },
+    { id: '4', title: '📢 App Update', message: 'New features and improvements are now available!', category: 'Update' },
+    { id: '5', title: '🔔 Team Invitation', message: 'You have been invited to join a team!', category: 'Team' },
+    { id: '6', title: '⚽ Game Invitation', message: 'You have been invited to join a football match!', category: 'Game Invite' },
+  ]);
+  
+  const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
 
   useEffect(() => {
     loadAdminStats();
+    loadUsers();
   }, []);
 
   const loadAdminStats = async () => {
     setLoading(true);
     try {
-      // Get basic stats (mock data for now)
+      // Get real stats from Supabase
+      const { count: totalUsers } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: activeTokens } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true })
+        .not('push_token', 'is', null);
+
+      // Mock data for teams and matches (you can replace with real queries)
       setStats({
-        totalUsers: 150,
-        totalTeams: 45,
-        totalMatches: 89,
-        activeTokens: 120,
+        totalUsers: totalUsers || 0,
+        totalTeams: 45, // Replace with real query
+        totalMatches: 89, // Replace with real query
+        activeTokens: activeTokens || 0,
       });
     } catch (error) {
       console.error('Error loading admin stats:', error);
@@ -59,7 +106,26 @@ const AdminPanelScreen: React.FC = () => {
     }
   };
 
-  const sendTestNotification = async () => {
+  const loadUsers = async () => {
+    try {
+      const { data: usersData, error } = await supabase
+        .from('user_profiles')
+        .select('id, username, email, push_token, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('Error loading users:', error);
+        return;
+      }
+
+      setUsers(usersData || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+
+  const sendBroadcastNotification = async () => {
     if (!testTitle.trim() || !testMessage.trim()) {
       Alert.alert('Error', 'Please enter both title and message');
       return;
@@ -67,36 +133,121 @@ const AdminPanelScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      const result = await AdminFCMService.sendTestNotification(
-        undefined, // Send to all users
-        testTitle.trim(),
-        testMessage.trim()
-      );
+      const serverUrl = 'https://web-production-397d5.up.railway.app'; // Use the correct server URL
+      
+      const response = await fetch(`${serverUrl}/send-broadcast-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: testTitle.trim(),
+          message: testMessage.trim(),
+          data: notificationData ? JSON.parse(notificationData) : {},
+          sound: true,
+        }),
+      });
+
+      const result = await response.json();
 
       if (result.success) {
         Alert.alert(
           'Success',
-          `Test notification sent to ${result.sentCount} devices!`
+          `Notification sent to ${result.sentCount} devices!\nFailed: ${result.failedCount}`
         );
       } else {
         Alert.alert('Error', result.error || 'Failed to send notification');
       }
     } catch (error) {
-      console.error('Error sending test notification:', error);
-      Alert.alert('Error', 'Failed to send test notification');
+      console.error('Error sending broadcast notification:', error);
+      Alert.alert('Error', 'Failed to send notification. Check server connection.');
     } finally {
       setLoading(false);
     }
   };
 
-  const clearAllNotifications = async () => {
-    try {
-      await fcmPushNotificationService.clearAllNotifications();
-      Alert.alert('Success', 'All notifications cleared');
-    } catch (error) {
-      console.error('Error clearing notifications:', error);
-      Alert.alert('Error', 'Failed to clear notifications');
+  const sendUserNotification = async () => {
+    if (!selectedUser) {
+      Alert.alert('Error', 'Please select a user');
+      return;
     }
+
+    if (!testTitle.trim() || !testMessage.trim()) {
+      Alert.alert('Error', 'Please enter both title and message');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const serverUrl = 'https://web-production-397d5.up.railway.app'; // Use the correct server URL
+      
+      const response = await fetch(`${serverUrl}/send-user-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          title: testTitle.trim(),
+          message: testMessage.trim(),
+          data: notificationData ? JSON.parse(notificationData) : {},
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        Alert.alert(
+          'Success',
+          `Notification sent to ${selectedUser.username || selectedUser.email}!`
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to send notification');
+      }
+    } catch (error) {
+      console.error('Error sending user notification:', error);
+      Alert.alert('Error', 'Failed to send notification. Check server connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const useTemplate = (template: NotificationTemplate) => {
+    setTestTitle(template.title);
+    setTestMessage(template.message);
+    setSelectedTemplate(template);
+  };
+
+  const clearAllNotifications = async () => {
+    Alert.alert(
+      'Clear All Notifications',
+      'Are you sure you want to clear all notifications? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('notifications')
+                .delete()
+                .neq('id', '00000000-0000-0000-0000-000000000000');
+
+              if (error) {
+                Alert.alert('Error', 'Failed to clear notifications');
+                return;
+              }
+
+              Alert.alert('Success', 'All notifications cleared');
+              loadAdminStats();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear notifications');
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -135,9 +286,30 @@ const AdminPanelScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Notification Templates Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📋 Quick Templates</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templateContainer}>
+            {templates.map((template) => (
+              <TouchableOpacity
+                key={template.id}
+                style={[
+                  styles.templateCard,
+                  selectedTemplate?.id === template.id && styles.selectedTemplate
+                ]}
+                onPress={() => useTemplate(template)}
+              >
+                <Text style={styles.templateCategory}>{template.category}</Text>
+                <Text style={styles.templateTitle}>{template.title}</Text>
+                <Text style={styles.templateMessage} numberOfLines={2}>{template.message}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* Push Notifications Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Push Notifications</Text>
+          <Text style={styles.sectionTitle}>📱 Push Notifications</Text>
           
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Notification Title</Text>
@@ -163,33 +335,66 @@ const AdminPanelScreen: React.FC = () => {
             />
           </View>
 
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Additional Data (JSON - Optional)</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              value={notificationData}
+              onChangeText={setNotificationData}
+              placeholder='{"screen": "More", "action": "open"}'
+              placeholderTextColor="#666"
+              multiline
+              numberOfLines={2}
+            />
+          </View>
+
           <TouchableOpacity
             style={[styles.actionButton, loading && styles.buttonDisabled]}
-            onPress={sendTestNotification}
+            onPress={sendBroadcastNotification}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Ionicons name="send" size={20} color="#fff" />
-                <Text style={styles.buttonText}>Send Test Notification</Text>
+                <Ionicons name="megaphone" size={20} color="#fff" />
+                <Text style={styles.buttonText}>Send to All Users</Text>
               </>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, styles.secondaryButton]}
-            onPress={clearAllNotifications}
+            onPress={() => setShowUserModal(true)}
+            disabled={loading}
           >
-            <Ionicons name="trash" size={20} color="#fff" />
-            <Text style={styles.buttonText}>Clear All Notifications</Text>
+            <Ionicons name="person" size={20} color="#fff" />
+            <Text style={styles.buttonText}>
+              {selectedUser ? `Send to ${selectedUser.username || selectedUser.email}` : 'Select User to Send'}
+            </Text>
           </TouchableOpacity>
+
+          {selectedUser && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.infoButton]}
+              onPress={sendUserNotification}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="send" size={20} color="#fff" />
+                  <Text style={styles.buttonText}>Send to Selected User</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Actions Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Admin Actions</Text>
+          <Text style={styles.sectionTitle}>🔧 Admin Actions</Text>
           
           <TouchableOpacity
             style={[styles.actionButton, styles.infoButton]}
@@ -198,8 +403,64 @@ const AdminPanelScreen: React.FC = () => {
             <Ionicons name="refresh" size={20} color="#fff" />
             <Text style={styles.buttonText}>Refresh Stats</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.dangerButton]}
+            onPress={clearAllNotifications}
+          >
+            <Ionicons name="trash" size={20} color="#fff" />
+            <Text style={styles.buttonText}>Clear All Notifications</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* User Selection Modal */}
+      <Modal
+        visible={showUserModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowUserModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select User</Text>
+              <TouchableOpacity
+                onPress={() => setShowUserModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={users}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.userItem,
+                    selectedUser?.id === item.id && styles.selectedUserItem
+                  ]}
+                  onPress={() => {
+                    setSelectedUser(item);
+                    setShowUserModal(false);
+                  }}
+                >
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>{item.username || item.email}</Text>
+                    <Text style={styles.userEmail}>{item.email}</Text>
+                    <Text style={styles.userToken}>
+                      {item.push_token ? '✅ Has Push Token' : '❌ No Push Token'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              style={styles.userList}
+            />
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -301,6 +562,102 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  dangerButton: {
+    backgroundColor: '#f44336',
+  },
+  templateContainer: {
+    marginBottom: 10,
+  },
+  templateCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    padding: 15,
+    marginRight: 10,
+    width: 200,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedTemplate: {
+    borderColor: '#4CAF50',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+  },
+  templateCategory: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  templateTitle: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  templateMessage: {
+    fontSize: 12,
+    color: '#ccc',
+    lineHeight: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#2d2d2d',
+    borderRadius: 15,
+    width: '90%',
+    maxHeight: '80%',
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  userList: {
+    maxHeight: 400,
+  },
+  userItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedUserItem: {
+    borderColor: '#4CAF50',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 5,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#ccc',
+    marginBottom: 5,
+  },
+  userToken: {
+    fontSize: 12,
+    color: '#4CAF50',
   },
 });
 

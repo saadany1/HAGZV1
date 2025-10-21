@@ -263,19 +263,24 @@ const GameDetailsScreen: React.FC = () => {
       };
 
       // Send game invitation with push notification
+      console.log('🎮 Sending game invitation with push notification...');
       const result = await gameInvitationService.sendGameInvitation(
         targetUser.id,
         user.id,
         invitationDetails
       );
 
+      console.log('📱 Game invitation result:', result);
+
       if (result.success) {
         setShowInviteModal(false);
         setInviteUsername('');
         setSearchResults([]);
         setShowInviteSuccessModal(true);
+        console.log('✅ Game invitation sent successfully');
       } else {
         setInviteError(result.error || 'Failed to send invitation. Please try again.');
+        console.error('❌ Game invitation failed:', result.error);
       }
     } catch (error) {
       console.error('Error sending invitation:', error);

@@ -2,8 +2,8 @@
   "expo": {
     "name": "HAGZ",
     "slug": "HagzApp",
-    "version": "36",
-    "newArchEnabled": true,
+    "version": "40",
+    "newArchEnabled": false,
     "jsEngine": "hermes",
     "assetBundlePatterns": [
       "**/*"
@@ -14,6 +14,16 @@
     },
     "experiments": {
       "typedRoutes": true
+    },
+    "notification": {
+      "icon": "./assets/notification_icon.png",
+      "color": "#4CAF50"
+    },
+    "android": {
+      "notification": {
+        "icon": "./assets/notification_icon.png",
+        "color": "#4CAF50"
+      }
     },
     "extra": {
       "eas": {

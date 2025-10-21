@@ -15,8 +15,11 @@ export const ENV = {
   ENABLE_SUPABASE: true, // Enable Supabase now that we have credentials
   
   // API Endpoints (if needed)
-  API_BASE_URL: 'https://your-api-domain.com',
+  API_BASE_URL: 'https://web-production-397d5.up.railway.app',
 };
+
+// Debug: Log the API URL on startup
+console.log('🔧 ENV.API_BASE_URL configured as:', ENV.API_BASE_URL);
 
 // Validation
 export const validateEnv = () => {

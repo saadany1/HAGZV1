@@ -620,19 +620,34 @@ const PlayScreen: React.FC = () => {
         const gameTime = selectedTimeLabel;
         const senderName = user.user_metadata?.full_name || user.email || 'Someone';
 
+        // Import game invitation service
+        const { gameInvitationService } = await import('../services/gameInvitationService');
+
         for (const target of invitedUsers) {
-          // Create database notification (push notification will be sent automatically)
-          const { error: notificationError } = await db.createNotification({
-            user_id: target.id,
-            type: 'game_invitation',
-            title: 'Game Invitation',
-            message: `${senderName} invited you to join "${gameTitle}" on ${gameDate} at ${gameTime}`,
-            game_id: newBooking.id,
-            invited_by: user.id,
-            status: 'pending',
-          });
-          if (notificationError) {
-            console.error('Error sending invite to', target.username, notificationError);
+          try {
+            const invitationDetails = {
+              gameTitle: gameTitle,
+              gameDate: gameDate,
+              gameTime: gameTime,
+              pitchName: selectedPitch.name || 'Football Match',
+              pitchLocation: selectedPitch.location || '',
+              inviterName: senderName,
+              gameId: newBooking.id
+            };
+
+            const result = await gameInvitationService.sendGameInvitation(
+              target.id,
+              user.id,
+              invitationDetails
+            );
+
+            if (!result.success) {
+              console.error('Error sending invite to', target.username, result.error);
+            } else {
+              console.log('✅ Game invitation sent to', target.username);
+            }
+          } catch (error) {
+            console.error('Error sending invite to', target.username, error);
           }
         }
       }

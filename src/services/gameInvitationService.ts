@@ -3,7 +3,6 @@
 
 import { supabase } from '../lib/supabase';
 import { getEndpointUrl, SERVER_CONFIG } from '../config/server';
-// Push notifications removed
 
 interface GameInvitationData {
   user_id: string;
@@ -40,7 +39,7 @@ class GameInvitationService {
       // Get target user's push token
       const { data: targetUser, error: userError } = await supabase
         .from('user_profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, push_token')
         .eq('id', targetUserId)
         .single();
 
@@ -75,10 +74,65 @@ class GameInvitationService {
       }
 
       // Send push notification if user has a valid token
-      // Push notification sending removed
+      if (targetUser.push_token) {
+        try {
+          console.log(`📱 Attempting to send push notification to ${targetUser.email} with token: ${targetUser.push_token.substring(0, 20)}...`);
+          
+          const serverUrl = 'https://web-production-397d5.up.railway.app'; // Use the correct server URL
+          
+          const pushNotificationData = {
+            screen: 'GameDetails',
+            gameId: invitationDetails.gameId,
+            invitationId: notification.id,
+            type: 'game_invitation',
+            inviterName: invitationDetails.inviterName,
+            gameTitle: invitationDetails.gameTitle,
+            gameDate: invitationDetails.gameDate,
+            gameTime: invitationDetails.gameTime
+          };
 
-      // Send local notification if this is the current user (for testing)
-      // Local notification removed
+          console.log('📤 Sending push notification request to server:', {
+            serverUrl: `${serverUrl}/send-game-invitation`,
+            userId: targetUserId,
+            title: notificationData.title,
+            message: notificationData.message,
+            data: pushNotificationData
+          });
+
+          const response = await fetch(`${serverUrl}/send-game-invitation`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: targetUserId,
+              title: notificationData.title,
+              message: notificationData.message,
+              data: pushNotificationData,
+            }),
+          });
+
+          console.log('📡 Server response status:', response.status);
+          
+          if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}: ${response.statusText}`);
+          }
+          
+          const result = await response.json();
+          console.log('📡 Server response:', result);
+          
+          if (result.success) {
+            console.log(`✅ Push notification sent successfully to ${targetUser.email}`);
+          } else {
+            console.warn(`⚠️ Push notification failed for ${targetUser.email}:`, result.error);
+          }
+        } catch (pushError) {
+          console.error('❌ Error sending push notification:', pushError);
+          // Don't fail the entire invitation if push notification fails
+        }
+      } else {
+        console.log(`ℹ️ No push token for user ${targetUser.email}, skipping push notification`);
+      }
 
       console.log(`✅ Game invitation sent successfully to ${targetUser.email}`);
       return { success: true };

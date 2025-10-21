@@ -39,6 +39,7 @@ import MatchDetailScreen from '../screens/MatchDetailScreen';
 import TeamSettingsScreen from '../screens/TeamSettingsScreen';
 import CreateTeamScreen from '../screens/CreateTeamScreen';
 import TeamChatScreen from '../screens/TeamChatScreen';
+import AdminPanelScreen from '../screens/AdminPanelScreen';
 
 export type RootStackParamList = {
   Landing: undefined;
@@ -64,6 +65,7 @@ export type RootStackParamList = {
   TeamSettings: { teamId: string };
   CreateTeam: undefined;
   TeamChat: { teamId: string; teamName: string };
+  AdminPanel: undefined;
 };
 
 export type TabParamList = {
@@ -654,6 +656,14 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen 
           name="TeamChat" 
           component={TeamChatScreen}
+          options={{
+            headerShown: false,
+            ...smoothTransitionOptions,
+          }}
+        />
+        <Stack.Screen 
+          name="AdminPanel" 
+          component={AdminPanelScreen}
           options={{
             headerShown: false,
             ...smoothTransitionOptions,

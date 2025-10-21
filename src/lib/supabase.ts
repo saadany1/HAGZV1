@@ -1362,46 +1362,8 @@ export const db = {
         return { data: null, error };
       }
 
-      // Send push notification for game invitations
-      if (notificationData.type === 'game_invitation') {
-        try {
-          // Get target user's push token
-          const { data: targetUser } = await supabase
-            .from('user_profiles')
-            .select('push_token, full_name, email')
-            .eq('id', notificationData.user_id)
-            .single();
-
-          if (targetUser?.push_token) {
-            // Import the service dynamically to avoid circular dependencies
-            const { gameInvitationService } = await import('../services/gameInvitationService');
-            
-            // Get game details for the notification
-            const { data: gameData } = await supabase
-              .from('bookings')
-              .select('id, pitch_name, pitch_location, date, time, created_by')
-              .eq('id', notificationData.game_id)
-              .single();
-
-            // Get inviter details
-            const { data: inviterData } = await supabase
-              .from('user_profiles')
-              .select('full_name, email')
-              .eq('id', notificationData.invited_by)
-              .single();
-
-            if (gameData && inviterData) {
-              const inviterName = inviterData.full_name || inviterData.email || 'Someone';
-              
-              // Push notifications removed - local notification sending disabled
-              }
-            }
-          }
-        } catch (pushError) {
-          console.error('Error sending push notification for invitation:', pushError);
-          // Don't fail the whole operation if push notification fails
-        }
-      }
+      // Push notifications removed for game invitations
+      // (no-op)
 
       return { data, error: null };
     } catch (error) {
