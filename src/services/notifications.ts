@@ -3,6 +3,17 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { ENV } from '../config/env';
+import Constants from 'expo-constants';
+
+// Import Firebase messaging for production builds
+let messaging: any = null;
+if (Platform.OS === 'android' && !__DEV__) {
+  try {
+    messaging = require('@react-native-firebase/messaging').default;
+  } catch (error) {
+    console.warn('Firebase messaging not available:', error);
+  }
+}
 
 // Configure how notifications are handled when received in foreground
 Notifications.setNotificationHandler({
@@ -46,10 +57,27 @@ export async function getExpoPushToken(): Promise<string | null> {
 
     await ensureAndroidChannel();
 
+    // In production builds, try to get Firebase token first
+    if (Platform.OS === 'android' && !__DEV__ && messaging) {
+      try {
+        console.log('🔥 Attempting to get Firebase token...');
+        const fcmToken = await messaging().getToken();
+        if (fcmToken) {
+          console.log('✅ Firebase token obtained:', fcmToken.substring(0, 20) + '...');
+          return fcmToken;
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to get Firebase token, falling back to Expo:', error);
+      }
+    }
+
+    // Fallback to Expo token (for development or if Firebase fails)
+    console.log('📱 Getting Expo push token...');
     const pushToken = (await Notifications.getExpoPushTokenAsync()).data;
+    console.log('✅ Expo token obtained:', pushToken.substring(0, 20) + '...');
     return pushToken;
   } catch (error) {
-    console.error('Error getting Expo push token:', error);
+    console.error('Error getting push token:', error);
     return null;
   }
 }

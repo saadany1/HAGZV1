@@ -1,15 +1,33 @@
 // server/pushNotificationSender.js
-// This is a Node.js script to send push notifications using Expo Push Service
-// Install: npm install expo-server-sdk-node
+// This is a Node.js script to send push notifications using both Expo Push Service and Firebase Cloud Messaging
+// Install: npm install expo-server-sdk-node firebase-admin
 
 const { Expo } = require('expo-server-sdk');
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin SDK
+let firebaseApp = null;
+try {
+  // Use the Firebase service account key from environment variable or file
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY 
+    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+    : require('./hagz-v5-firebase-adminsdk-fbsvc-fb86ff0fdf.json');
+  
+  firebaseApp = admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: 'hagz-v5'
+  });
+  console.log('✅ Firebase Admin SDK initialized successfully');
+} catch (error) {
+  console.warn('⚠️ Firebase Admin SDK not initialized:', error.message);
+}
 
 // Create a new Expo SDK client
 const expo = new Expo();
 
 /**
- * Send push notifications to multiple users
- * @param {string[]} tokens - Array of Expo push tokens
+ * Send push notifications to multiple users (supports both Expo and Firebase tokens)
+ * @param {string[]} tokens - Array of push tokens (Expo or Firebase)
  * @param {string} title - Notification title
  * @param {string} body - Notification body
  * @param {object} data - Additional data to send with notification
@@ -17,23 +35,60 @@ const expo = new Expo();
  */
 async function sendPushNotifications(tokens, title, body, data = {}) {
   console.log(`📤 Sending push notifications to ${tokens.length} devices...`);
-  console.log('🔍 Debug - Token validation:', tokens.map(token => ({
-    token: token.substring(0, 20) + '...',
-    isValid: Expo.isExpoPushToken(token),
-    length: token.length
-  })));
+  
+  // Separate Expo and Firebase tokens
+  const expoTokens = [];
+  const firebaseTokens = [];
+  
+  for (const token of tokens) {
+    if (Expo.isExpoPushToken(token)) {
+      expoTokens.push(token);
+    } else if (token && token.length > 50 && !token.startsWith('ExponentPushToken')) {
+      // Firebase tokens are typically longer and don't start with ExponentPushToken
+      firebaseTokens.push(token);
+    } else {
+      console.warn(`⚠️ Unknown token format: ${token.substring(0, 20)}...`);
+    }
+  }
+  
+  console.log(`🔍 Token breakdown: ${expoTokens.length} Expo tokens, ${firebaseTokens.length} Firebase tokens`);
+  
+  let totalSuccess = 0;
+  let totalFailed = 0;
+  
+  // Send Expo notifications
+  if (expoTokens.length > 0) {
+    console.log('📱 Sending Expo notifications...');
+    const expoResult = await sendExpoNotifications(expoTokens, title, body, data);
+    totalSuccess += expoResult.success;
+    totalFailed += expoResult.failed;
+  }
+  
+  // Send Firebase notifications
+  if (firebaseTokens.length > 0 && firebaseApp) {
+    console.log('🔥 Sending Firebase notifications...');
+    const firebaseResult = await sendFirebaseNotifications(firebaseTokens, title, body, data);
+    totalSuccess += firebaseResult.success;
+    totalFailed += firebaseResult.failed;
+  } else if (firebaseTokens.length > 0 && !firebaseApp) {
+    console.error('❌ Firebase tokens found but Firebase Admin SDK not initialized');
+    totalFailed += firebaseTokens.length;
+  }
+  
+  return {
+    success: totalSuccess,
+    failed: totalFailed,
+    total: tokens.length
+  };
+}
 
-  // Create the messages that you want to send to clients
+/**
+ * Send notifications via Expo Push Service
+ */
+async function sendExpoNotifications(tokens, title, body, data = {}) {
   const messages = [];
   
   for (const pushToken of tokens) {
-    // Check that all your push tokens appear to be valid Expo push tokens
-    if (!Expo.isExpoPushToken(pushToken)) {
-      console.error(`❌ Push token ${pushToken} is not a valid Expo push token`);
-      continue;
-    }
-
-    // Construct a message
     messages.push({
       to: pushToken,
       sound: 'notification_sound.wav',
@@ -53,10 +108,10 @@ async function sendPushNotifications(tokens, title, body, data = {}) {
   for (const chunk of chunks) {
     try {
       const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-      console.log('📨 Sent chunk:', ticketChunk);
+      console.log('📨 Expo chunk sent:', ticketChunk);
       tickets.push(...ticketChunk);
     } catch (error) {
-      console.error('❌ Error sending chunk:', error);
+      console.error('❌ Error sending Expo chunk:', error);
     }
   }
 
@@ -88,6 +143,75 @@ async function sendPushNotifications(tokens, title, body, data = {}) {
     invalidTokens,
     tickets
   };
+}
+
+/**
+ * Send notifications via Firebase Cloud Messaging
+ */
+async function sendFirebaseNotifications(tokens, title, body, data = {}) {
+  if (!firebaseApp) {
+    console.error('❌ Firebase Admin SDK not initialized');
+    return { success: 0, failed: tokens.length, total: tokens.length };
+  }
+
+  const message = {
+    notification: {
+      title: title,
+      body: body,
+    },
+    data: {
+      ...data,
+      // Convert all data values to strings (Firebase requirement)
+      ...Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, String(value)])
+      )
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'notification_sound.wav',
+        channelId: 'NL',
+        color: '#4CAF50',
+        icon: 'notification_icon'
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'notification_sound.wav',
+          badge: 1
+        }
+      }
+    }
+  };
+
+  try {
+    // Send to multiple tokens
+    const response = await admin.messaging().sendMulticast({
+      ...message,
+      tokens: tokens
+    });
+
+    console.log('🔥 Firebase response:', {
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      responses: response.responses.map((resp, index) => ({
+        token: tokens[index].substring(0, 20) + '...',
+        success: resp.success,
+        error: resp.error?.message || null
+      }))
+    });
+
+    return {
+      success: response.successCount,
+      failed: response.failureCount,
+      total: tokens.length,
+      responses: response.responses
+    };
+  } catch (error) {
+    console.error('❌ Firebase send error:', error);
+    return { success: 0, failed: tokens.length, total: tokens.length, error: error.message };
+  }
 }
 
 /**

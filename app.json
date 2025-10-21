@@ -2,7 +2,7 @@
   "expo": {
     "name": "HAGZ",
     "slug": "HagzApp",
-    "version": "41",
+    "version": "42",
     "newArchEnabled": false,
     "jsEngine": "hermes",
     "assetBundlePatterns": [
@@ -16,10 +16,12 @@
       "typedRoutes": true
     },
     "notification": {
+      "icon": "./assets/notification_icon.png",
       "color": "#4CAF50"
     },
     "android": {
       "notification": {
+        "icon": "./assets/notification_icon.png",
         "color": "#4CAF50"
       }
     },
