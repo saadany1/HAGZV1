@@ -28,11 +28,6 @@ async function sendPushNotifications(tokens, title, body, data = {}) {
   
   for (const pushToken of tokens) {
     // Check that all your push tokens appear to be valid Expo push tokens
-    if (!pushToken || typeof pushToken !== 'string') {
-      console.error(`❌ Invalid push token (not a string):`, pushToken);
-      continue;
-    }
-    
     if (!Expo.isExpoPushToken(pushToken)) {
       console.error(`❌ Push token ${pushToken} is not a valid Expo push token`);
       continue;
@@ -47,24 +42,9 @@ async function sendPushNotifications(tokens, title, body, data = {}) {
       data: data,
       priority: 'high',
       channelId: 'NL', // Use HAGZ notification channel instead of default
-      badge: 1, // Show badge count
     });
   }
 
-  // Check if we have any valid messages to send
-  if (messages.length === 0) {
-    console.error('❌ No valid messages to send');
-    return {
-      success: 0,
-      failed: tokens.length,
-      total: tokens.length,
-      invalidTokens: tokens,
-      tickets: []
-    };
-  }
-
-  console.log(`📤 Sending ${messages.length} valid messages...`);
-  
   // The Expo push notification service accepts batches of notifications
   const chunks = expo.chunkPushNotifications(messages);
   const tickets = [];
@@ -77,12 +57,6 @@ async function sendPushNotifications(tokens, title, body, data = {}) {
       tickets.push(...ticketChunk);
     } catch (error) {
       console.error('❌ Error sending chunk:', error);
-      console.error('❌ Chunk details:', JSON.stringify(chunk, null, 2));
-      console.error('❌ Error details:', {
-        message: error.message,
-        status: error.status,
-        response: error.response
-      });
     }
   }
 
