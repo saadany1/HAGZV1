@@ -13,7 +13,8 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseServiceKey) {
   console.error('❌ SUPABASE_SERVICE_ROLE_KEY environment variable is required');
-  process.exit(1);
+  console.error('⚠️ Server will start but push notifications will not work');
+  // Don't exit - let the server start for health checks
 }
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -30,6 +31,12 @@ app.get('/health', (req, res) => {
 app.post('/send-broadcast-notification', async (req, res) => {
   try {
     console.log('📨 Received broadcast notification request');
+    
+    if (!supabaseServiceKey) {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY not configured');
+      return res.status(500).json({ error: 'Push notifications not configured' });
+    }
+    
     const { title, message, data = {}, sound = true } = req.body;
 
     if (!title || !message) {
@@ -81,6 +88,11 @@ app.post('/send-game-invitation', async (req, res) => {
   try {
     console.log('🎮 Received game invitation request');
     console.log('📥 Request body:', req.body);
+    
+    if (!supabaseServiceKey) {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY not configured');
+      return res.status(500).json({ error: 'Push notifications not configured' });
+    }
     
     const { userId, title, message, data = {} } = req.body;
 
@@ -137,6 +149,11 @@ app.post('/send-game-invitation', async (req, res) => {
 // Send notification to specific user
 app.post('/send-user-notification', async (req, res) => {
   try {
+    if (!supabaseServiceKey) {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY not configured');
+      return res.status(500).json({ error: 'Push notifications not configured' });
+    }
+    
     const { userId, title, message, data = {} } = req.body;
 
     if (!userId || !title || !message) {
