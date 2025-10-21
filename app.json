@@ -16,12 +16,12 @@
       "typedRoutes": true
     },
     "notification": {
-      "icon": "./assets/notification_icon.png",
+      "icon": "./assets/icon.png",
       "color": "#4CAF50"
     },
     "android": {
       "notification": {
-        "icon": "./assets/notification_icon.png",
+        "icon": "./assets/icon.png",
         "color": "#4CAF50"
       }
     },
