@@ -2,7 +2,7 @@
   "expo": {
     "name": "HAGZ",
     "slug": "HagzApp",
-    "version": "40",
+    "version": "41",
     "newArchEnabled": false,
     "jsEngine": "hermes",
     "assetBundlePatterns": [
