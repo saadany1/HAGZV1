@@ -1,0 +1,28 @@
+# Ignore Expo/React Native files for Railway deployment
+App.tsx
+index.ts
+src/
+android/
+ios/
+expo-env.d.ts
+metro.config.js
+babel.config.js
+eas.json
+app.json
+tsconfig.json
+plugins/
+scripts/
+assets/
+credentials/
+Database/
+dist/
+
+# Keep only server files
+index.js
+pushNotificationSender.js
+package.json
+server-package.json
+railway.json
+Procfile
+env.example
+README.md
