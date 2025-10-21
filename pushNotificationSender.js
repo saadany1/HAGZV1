@@ -8,16 +8,18 @@ const admin = require('firebase-admin');
 // Initialize Firebase Admin SDK
 let firebaseApp = null;
 try {
-  // Use the Firebase service account key from environment variable or file
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY 
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-    : require('./hagz-v5-firebase-adminsdk-fbsvc-fb86ff0fdf.json');
+  // Use the Firebase service account key from environment variable
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   
-  firebaseApp = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: 'hagz-v5'
-  });
-  console.log('✅ Firebase Admin SDK initialized successfully');
+  if (serviceAccount) {
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(serviceAccount)),
+      projectId: 'hagz-v5'
+    });
+    console.log('✅ Firebase Admin SDK initialized successfully');
+  } else {
+    console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT_KEY environment variable not set');
+  }
 } catch (error) {
   console.warn('⚠️ Firebase Admin SDK not initialized:', error.message);
 }
