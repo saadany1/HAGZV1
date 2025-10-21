@@ -90,6 +90,64 @@ app.post('/send-broadcast-notification', async (req, res) => {
   }
 });
 
+// Send game invitation notification
+app.post('/send-game-invitation', async (req, res) => {
+  try {
+    console.log('🎮 Received game invitation request');
+    console.log('📥 Request body:', req.body);
+    
+    const { userId, title, message, data = {} } = req.body;
+
+    if (!userId || !title || !message) {
+      console.log('❌ Missing required fields:', { userId: !!userId, title: !!title, message: !!message });
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    console.log(`🔍 Looking up user ${userId} for push token...`);
+    
+    // Get user's push token
+    const { data: user, error } = await supabase
+      .from('user_profiles')
+      .select('push_token, username, email')
+      .eq('id', userId)
+      .single();
+
+    if (error || !user) {
+      console.error('❌ User not found:', error);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`👤 Found user: ${user.email}, has push token: ${!!user.push_token}`);
+
+    if (!user.push_token) {
+      console.log(`ℹ️ No push token for user ${user.email}, skipping push notification`);
+      return res.json({
+        success: true,
+        sentCount: 0,
+        failedCount: 0,
+        message: 'No push token available'
+      });
+    }
+
+    console.log(`📱 Sending push notification to ${user.email} with token: ${user.push_token.substring(0, 20)}...`);
+
+    // Send notification
+    const result = await sendPushNotifications([user.push_token], title, message, data);
+
+    console.log(`✅ Game invitation notification sent to ${user.email}:`, result);
+    res.json({
+      success: true,
+      sentCount: result.success,
+      failedCount: result.failed,
+      totalTokens: 1
+    });
+
+  } catch (error) {
+    console.error('❌ Game invitation error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // Send notification to specific user
 app.post('/send-user-notification', async (req, res) => {
   try {
