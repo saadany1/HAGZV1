@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const { sendPushNotifications, sendBroadcastNotification } = require('./pushNotificationSender');
-const { sendGameInvitationNotification } = require('./gameInvitationSender');
+// const { sendGameInvitationNotification } = require('./gameInvitationSender'); // File not found, commented out
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
