@@ -40,3 +40,4 @@ The main fix was correcting the property names in server responses:
 - `result.failureCount` → `result.failed`
 
 This ensures the client receives proper `sentCount` values instead of `undefined`.
+
