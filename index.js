@@ -1,8 +1,28 @@
 // Express server for push notifications - HagzApp V5
+console.log('🚀 Starting server initialization...');
+console.log('📦 Node version:', process.version);
+console.log('📦 Process PID:', process.pid);
+
 const express = require('express');
 const cors = require('cors');
-const { sendPushNotifications, sendBroadcastNotification } = require('./pushNotificationSender');
 const { createClient } = require('@supabase/supabase-js');
+
+console.log('✅ Core dependencies loaded');
+
+// Try to load push notification sender, but don't crash if it fails
+let sendPushNotifications, sendBroadcastNotification;
+try {
+  const pushNotificationModule = require('./pushNotificationSender');
+  sendPushNotifications = pushNotificationModule.sendPushNotifications;
+  sendBroadcastNotification = pushNotificationModule.sendBroadcastNotification;
+  console.log('✅ Push notification sender loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load push notification sender:', error);
+  console.error('⚠️  Notification endpoints will not work, but server will start');
+  // Create stub functions
+  sendPushNotifications = async () => ({ success: 0, failed: 0, total: 0 });
+  sendBroadcastNotification = async () => ({ success: 0, failed: 0, total: 0 });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -207,12 +227,29 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 HagzApp V5 Push notification server running on port ${PORT}`);
-  console.log(`📱 Health check: http://0.0.0.0:${PORT}/health`);
-  console.log(`🔑 Supabase connection: ${supabaseUrl}`);
-  console.log(`✅ Server is ready to accept connections`);
-});
+console.log('🎯 Attempting to start server on port', PORT);
+try {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 HagzApp V5 Push notification server running on port ${PORT}`);
+    console.log(`📱 Health check: http://0.0.0.0:${PORT}/health`);
+    console.log(`🔑 Supabase connection: ${supabaseUrl}`);
+    console.log(`✅ Server is ready to accept connections`);
+    console.log(`🌐 Listening on all interfaces (0.0.0.0:${PORT})`);
+    console.log(`📍 Server address:`, server.address());
+  });
+  
+  server.on('error', (error) => {
+    console.error('❌ Server error:', error);
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use`);
+    }
+    process.exit(1);
+  });
+} catch (error) {
+  console.error('❌ Failed to start server:', error);
+  console.error('❌ Error stack:', error.stack);
+  process.exit(1);
+}
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
