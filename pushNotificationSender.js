@@ -50,12 +50,16 @@ async function sendPushNotifications(tokens, title, body, data = {}) {
 
 /**
  * Send notifications via Expo Push Service
+ * Note: The notification icon is automatically used from app.json configuration
+ * (app.json -> notification.icon: "./assets/icon.png")
+ * Expo will use the app's icon.png for all push notifications
  */
 async function sendExpoNotifications(tokens, title, body, data = {}) {
   const messages = [];
   
   for (const pushToken of tokens) {
     // Don't validate tokens - just try to send them
+    // The app icon (icon.png) is automatically used from app.json notification configuration
     messages.push({
       to: pushToken,
       sound: 'notification_sound.wav',
@@ -64,6 +68,8 @@ async function sendExpoNotifications(tokens, title, body, data = {}) {
       data: data,
       priority: 'high',
       channelId: 'NL', // Use HAGZ notification channel instead of default
+      // Note: Icon is automatically set from app.json -> notification.icon
+      // No need to specify icon here - Expo uses the app's icon.png
     });
   }
 
