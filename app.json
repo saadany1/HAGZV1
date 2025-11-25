@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "HAGZ",
+    "slug": "HagzApp",
+    "version": "43",
+    "newArchEnabled": false,
+    "jsEngine": "hermes",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "web": {
+      "favicon": "./assets/icon.png",
+      "bundler": "metro"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "notification": {
+      "icon": "./assets/notification_icon.png",
+      "color": "#4CAF50"
+    },
+    "android": {
+      "notification": {
+        "icon": "./assets/notification_icon.png",
+        "color": "#4CAF50"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "09cc7470-3c53-4046-9782-ff80cf1e5b2c"
+      }
+    },
+    "owner": "saadany3"
+  }
+}

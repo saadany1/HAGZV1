@@ -8,8 +8,8 @@ const { Expo } = require('expo-server-sdk');
 const expo = new Expo();
 
 /**
- * Send push notifications to multiple users
- * @param {string[]} tokens - Array of Expo push tokens
+ * Send push notifications to multiple users (handles both Expo and Firebase tokens via Expo service)
+ * @param {string[]} tokens - Array of push tokens (Expo or Firebase)
  * @param {string} title - Notification title
  * @param {string} body - Notification body
  * @param {object} data - Additional data to send with notification
@@ -17,23 +17,45 @@ const expo = new Expo();
  */
 async function sendPushNotifications(tokens, title, body, data = {}) {
   console.log(`📤 Sending push notifications to ${tokens.length} devices...`);
-  console.log('🔍 Debug - Token validation:', tokens.map(token => ({
-    token: token.substring(0, 20) + '...',
-    isValid: Expo.isExpoPushToken(token),
-    length: token.length
-  })));
+  
+  // Separate Expo and Firebase tokens
+  const expoTokens = [];
+  const firebaseTokens = [];
+  
+  for (const token of tokens) {
+    if (Expo.isExpoPushToken(token)) {
+      expoTokens.push(token);
+    } else if (token && token.length > 50 && !token.startsWith('ExponentPushToken')) {
+      // Firebase tokens are typically longer and don't start with ExponentPushToken
+      firebaseTokens.push(token);
+    } else {
+      console.warn(`⚠️ Unknown token format: ${token.substring(0, 20)}...`);
+    }
+  }
+  
+  console.log(`🔍 Token breakdown: ${expoTokens.length} Expo tokens, ${firebaseTokens.length} Firebase tokens`);
+  
+  // For now, send all tokens via Expo service (including Firebase tokens)
+  // Expo service can handle Firebase tokens in some cases
+  const allTokens = [...expoTokens, ...firebaseTokens];
+  
+  if (allTokens.length === 0) {
+    console.log('⚠️ No valid tokens found');
+    return { success: 0, failed: 0, total: tokens.length };
+  }
+  
+  console.log(`📱 Sending ${allTokens.length} notifications via Expo service...`);
+  return await sendExpoNotifications(allTokens, title, body, data);
+}
 
-  // Create the messages that you want to send to clients
+/**
+ * Send notifications via Expo Push Service
+ */
+async function sendExpoNotifications(tokens, title, body, data = {}) {
   const messages = [];
   
   for (const pushToken of tokens) {
-    // Check that all your push tokens appear to be valid Expo push tokens
-    if (!Expo.isExpoPushToken(pushToken)) {
-      console.error(`❌ Push token ${pushToken} is not a valid Expo push token`);
-      continue;
-    }
-
-    // Construct a message
+    // Don't validate tokens - just try to send them
     messages.push({
       to: pushToken,
       sound: 'notification_sound.wav',
@@ -53,10 +75,10 @@ async function sendPushNotifications(tokens, title, body, data = {}) {
   for (const chunk of chunks) {
     try {
       const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-      console.log('📨 Sent chunk:', ticketChunk);
+      console.log('📨 Expo chunk sent:', ticketChunk);
       tickets.push(...ticketChunk);
     } catch (error) {
-      console.error('❌ Error sending chunk:', error);
+      console.error('❌ Error sending Expo chunk:', error);
     }
   }
 
@@ -186,4 +208,3 @@ module.exports = {
   testSingleNotification,
   sendBroadcastNotification
 };
-

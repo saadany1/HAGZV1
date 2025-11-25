@@ -1,0 +1,24 @@
+// Server configuration (push notifications removed)
+export const SERVER_CONFIG = {
+  // Update this URL to your actual server URL
+  BASE_URL: 'https://web-production-397d5.up.railway.app', // Working server
+  
+  // Local development URL (for testing)
+  LOCAL_URL: 'http://localhost:3000',
+  
+  // Endpoints
+  ENDPOINTS: {
+    HEALTH: '/health'
+  }
+};
+
+// Get the appropriate server URL based on environment
+export const getServerUrl = () => {
+  // Always use the deployed server for now
+  return SERVER_CONFIG.BASE_URL;
+};
+
+// Helper function to build full endpoint URLs
+export const getEndpointUrl = (endpoint: string) => {
+  return `${getServerUrl()}${endpoint}`;
+};

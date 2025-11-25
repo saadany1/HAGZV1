@@ -1,0 +1,844 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ImageBackground,
+  Modal,
+  TextInput,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
+import { supabase } from '../lib/supabase';
+// Push Notification Tester removed
+import { gameInvitationService } from '../services/gameInvitationService';
+import { sendBroadcastNotification } from '../services/notifications';
+
+type MoreScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'More'>,
+  StackNavigationProp<RootStackParamList>
+>;
+
+const MoreScreen: React.FC = () => {
+  const navigation = useNavigation<MoreScreenNavigationProp>();
+  const [showSignOutModal, setShowSignOutModal] = React.useState(false);
+  // Push tester removed
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+
+  useEffect(() => {
+    checkAdminStatus();
+    loadNotifications();
+  }, []);
+
+  // Refresh notifications when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadNotifications();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.email === 'adelsaadany1@gmail.com') {
+        setIsAdmin(true);
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    setLoadingNotifications(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userNotifications, error } = await supabase
+        .from('notifications')
+        .select(`
+          *,
+          game:bookings(
+            id,
+            pitch_name,
+            pitch_location,
+            date,
+            time,
+            max_players
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error('Error loading notifications:', error);
+        return;
+      }
+
+      // Get inviter details for each notification and filter to only show pending
+      const notificationsWithInviter = await Promise.all(
+        (userNotifications || [])
+          .filter(notification => notification.status === 'pending') // Only show pending notifications
+          .map(async (notification) => {
+            if (notification.invited_by) {
+              const { data: inviter } = await supabase
+                .from('user_profiles')
+                .select('id, full_name, username')
+                .eq('id', notification.invited_by)
+                .single();
+              
+              return { ...notification, inviter };
+            }
+            return notification;
+          })
+      );
+
+      setNotifications(notificationsWithInviter);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleAcceptInvitation = async (notification: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if user is already a member of this game
+      const { data: existingMember, error: checkError } = await supabase
+        .from('game_members')
+        .select('id')
+        .eq('game_id', notification.game_id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('Error checking existing membership:', checkError);
+        Alert.alert('Error', 'Failed to check game membership. Please try again.');
+        return;
+      }
+
+      if (existingMember) {
+        // User is already a member, just update notification status
+        const { error: updateError } = await supabase
+          .from('notifications')
+          .update({ status: 'accepted' })
+          .eq('id', notification.id);
+
+        if (updateError) {
+          console.error('Error updating notification:', updateError);
+        }
+
+        await loadNotifications();
+        Alert.alert('Already Joined', 'You are already a member of this game!');
+        return;
+      }
+
+      // Join the game using the correct table name
+      const { error: joinError } = await supabase
+        .from('game_members')
+        .insert({
+          game_id: notification.game_id,
+          user_id: user.id,
+          role: 'player',
+          status: 'confirmed',
+          joined_at: new Date().toISOString()
+        });
+
+      if (joinError) {
+        console.error('Error joining game:', joinError);
+        Alert.alert('Error', 'Failed to join the game. Please try again.');
+        return;
+      }
+
+      // Update notification status to accepted
+      const { error: updateError } = await supabase
+        .from('notifications')
+        .update({ status: 'accepted' })
+        .eq('id', notification.id);
+
+      if (updateError) {
+        console.error('Error updating notification:', updateError);
+        Alert.alert('Error', 'Failed to accept invitation. Please try again.');
+        return;
+      }
+
+      // Refresh notifications
+      await loadNotifications();
+      
+      Alert.alert('Success!', 'You have joined the game successfully!');
+      
+      // Navigate to game details
+      navigation.navigate('GameDetails', { gameId: notification.game_id });
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      Alert.alert('Error', 'Failed to accept invitation. Please try again.');
+    }
+  };
+
+  const handleRejectInvitation = async (notification: any) => {
+    try {
+      // Update notification status to declined
+      const { error } = await supabase
+        .from('notifications')
+        .update({ status: 'declined' })
+        .eq('id', notification.id);
+
+      if (error) {
+        console.error('Error updating notification:', error);
+        Alert.alert('Error', 'Failed to reject invitation. Please try again.');
+        return;
+      }
+
+      // Refresh notifications (declined invitations will be filtered out)
+      await loadNotifications();
+      
+      Alert.alert('Invitation Rejected', 'You have declined the game invitation.');
+    } catch (error) {
+      console.error('Error rejecting invitation:', error);
+      Alert.alert('Error', 'Failed to reject invitation. Please try again.');
+    }
+  };
+
+  const handleSignOut = () => {
+    setShowSignOutModal(true);
+  };
+
+  const handleConfirmSignOut = async () => {
+    setShowSignOutModal(false);
+    try {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      console.log('✅ User signed out successfully');
+      // Navigation will be handled automatically by the auth state change
+    } catch (error) {
+      console.error('❌ Error signing out:', error);
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
+  };
+
+  const handleCancelSignOut = () => {
+    setShowSignOutModal(false);
+  };
+
+  const menuItems = [
+    {
+      icon: 'person',
+      title: 'Profile',
+      subtitle: 'Edit your profile and settings',
+      onPress: () => navigation.navigate('Profile' as any),
+    },
+    {
+      icon: 'help-circle',
+      title: 'Help & Support',
+      subtitle: 'Get help and contact support',
+      onPress: () => navigation.navigate('HelpSupport'),
+    },
+    {
+      icon: 'document-text',
+      title: 'Terms & Privacy',
+      subtitle: 'Read our terms and privacy policy',
+      onPress: () => navigation.navigate('TermsPrivacy'),
+    },
+    {
+      icon: 'information-circle',
+      title: 'About',
+      subtitle: 'App version and information',
+      onPress: () => navigation.navigate('About'),
+    },
+  ];
+
+  return (
+    <ImageBackground
+      source={require('../../assets/hage.jpeg')}
+      style={styles.container}
+    >
+      <View style={styles.backgroundOverlay}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <Text style={styles.title}>More</Text>
+            <Text style={styles.subtitle}>Settings and additional options</Text>
+          </View>
+
+          {/* Notifications Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🔔 Notifications</Text>
+            
+            {loadingNotifications ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading notifications...</Text>
+              </View>
+            ) : notifications.length > 0 ? (
+              notifications.map((notification) => {
+                // Since we only show pending notifications, we don't need status functions
+
+                return (
+                  <View key={notification.id} style={styles.notificationItem}>
+                    <View style={styles.notificationContent}>
+                      <View style={styles.notificationHeader}>
+                        <Ionicons 
+                          name={notification.type === 'game_invitation' ? 'football' : 'notifications'} 
+                          size={16} 
+                          color="#4CAF50" 
+                        />
+                        <Text style={styles.notificationTitle}>{notification.title}</Text>
+                      </View>
+                      <Text style={styles.notificationMessage}>{notification.message}</Text>
+                      {notification.game && (
+                        <View style={styles.gameInfo}>
+                          <Text style={styles.gameName}>{notification.game.pitch_name}</Text>
+                          <Text style={styles.gameDetails}>
+                            {new Date(notification.game.date).toLocaleDateString()} at {notification.game.time}
+                          </Text>
+                        </View>
+                      )}
+                      {notification.inviter && (
+                        <Text style={styles.inviterText}>
+                          by {notification.inviter.full_name || notification.inviter.username || 'Unknown'}
+                        </Text>
+                      )}
+                      <View style={styles.invitationActions}>
+                        <TouchableOpacity
+                          style={styles.acceptButton}
+                          onPress={() => handleAcceptInvitation(notification)}
+                        >
+                          <Ionicons name="checkmark" size={14} color="#fff" />
+                          <Text style={styles.acceptButtonText}>Accept</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.rejectButton}
+                          onPress={() => handleRejectInvitation(notification)}
+                        >
+                          <Ionicons name="close" size={14} color="#fff" />
+                          <Text style={styles.rejectButtonText}>Decline</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.emptyNotifications}>
+                <Ionicons name="notifications-outline" size={32} color="rgba(255, 255, 255, 0.3)" />
+                <Text style={styles.emptyText}>No notifications</Text>
+                <Text style={styles.emptySubtext}>You're all caught up!</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Admin/Developer Section */}
+          {isAdmin && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Admin Tools</Text>
+              <View style={styles.adminCard}>
+                <Text style={styles.adminLabel}>Broadcast title</Text>
+                <TextInput
+                  value={broadcastTitle}
+                  onChangeText={setBroadcastTitle}
+                  placeholder="Title"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  style={styles.input}
+                />
+                <Text style={styles.adminLabel}>Broadcast message</Text>
+                <TextInput
+                  value={broadcastMessage}
+                  onChangeText={setBroadcastMessage}
+                  placeholder="Message to all users"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  style={[styles.input, { height: 80 }]}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[styles.adminButton, isSendingBroadcast && { opacity: 0.7 }]}
+                  disabled={isSendingBroadcast}
+                  onPress={async () => {
+                    console.log('🎯 Send Broadcast button pressed');
+                    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+                      console.log('❌ Validation failed - missing title or message');
+                      Alert.alert('Validation', 'Title and message are required');
+                      return;
+                    }
+                    try {
+                      console.log('🚀 Starting broadcast process...');
+                      setIsSendingBroadcast(true);
+                      const result = await sendBroadcastNotification({
+                        title: broadcastTitle.trim(),
+                        message: broadcastMessage.trim(),
+                        sound: true,
+                      });
+                      console.log('📊 Broadcast result:', result);
+                      if (result.ok) {
+                        Alert.alert('Sent', `Broadcast sent to ${result.sentCount ?? 0} devices`);
+                        setBroadcastTitle('');
+                        setBroadcastMessage('');
+                      } else {
+                        Alert.alert('Error', result.error || 'Failed to send broadcast');
+                      }
+                    } catch (e) {
+                      console.error('💥 Unexpected error in broadcast:', e);
+                      Alert.alert('Error', 'Unexpected error while sending broadcast');
+                    } finally {
+                      setIsSendingBroadcast(false);
+                    }
+                  }}
+                >
+                  <Ionicons name="megaphone" size={16} color="#4CAF50" />
+                  <Text style={styles.adminButtonText}>{isSendingBroadcast ? 'Sending...' : 'Send Broadcast'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            
+            {menuItems.slice(0, 3).map((item, index) => (
+              <TouchableOpacity key={index} style={styles.menuItem} onPress={item.onPress}>
+                <View style={styles.menuIcon}>
+                  <Ionicons name={item.icon as any} size={24} color="#fff" />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={styles.menuTitle}>{item.title}</Text>
+                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Support</Text>
+            
+            {menuItems.slice(3, 5).map((item, index) => (
+              <TouchableOpacity key={index} style={styles.menuItem} onPress={item.onPress}>
+                <View style={styles.menuIcon}>
+                  <Ionicons name={item.icon as any} size={24} color="#fff" />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={styles.menuTitle}>{item.title}</Text>
+                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>App</Text>
+            
+            {menuItems.slice(5).map((item, index) => (
+              <TouchableOpacity key={index} style={styles.menuItem} onPress={item.onPress}>
+                <View style={styles.menuIcon}>
+                  <Ionicons name={item.icon as any} size={24} color="#fff" />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={styles.menuTitle}>{item.title}</Text>
+                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+              <View style={styles.signOutIcon}>
+                <Ionicons name="log-out-outline" size={24} color="#ef4444" />
+              </View>
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.footer}>
+            <Text style={styles.versionText}>Hagz v1.0.0</Text>
+            <Text style={styles.copyrightText}>© 2024 Hagz. All rights reserved.</Text>
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Sign Out Confirmation Modal */}
+      <Modal
+        visible={showSignOutModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelSignOut}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmationModal}>
+            <View style={styles.confirmationIconContainer}>
+              <Ionicons name="log-out" size={32} color="rgba(255, 255, 255, 0.9)" />
+            </View>
+            <Text style={styles.confirmationTitle}>Sign Out</Text>
+            <Text style={styles.confirmationMessage}>
+              Are you sure you want to sign out?
+            </Text>
+            <View style={styles.confirmationButtons}>
+              <TouchableOpacity 
+                style={styles.confirmationButtonSecondary}
+                onPress={handleCancelSignOut}
+              >
+                <Text style={styles.confirmationButtonTextSecondary}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.confirmationButtonPrimary}
+                onPress={handleConfirmSignOut}
+              >
+                <Text style={styles.confirmationButtonTextPrimary}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Push Notification Tester removed */}
+
+    </ImageBackground>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  backgroundOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 30,
+  },
+  header: {
+    marginBottom: 30,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  section: {
+    marginBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 16,
+  },
+  menuItem: {
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  menuContent: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  menuSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  signOutButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  signOutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ef4444',
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  versionText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginBottom: 8,
+  },
+  copyrightText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.3)',
+  },
+  // Admin button styles
+  adminButton: {
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  adminButtonText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  adminCard: {
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  adminLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  // Confirmation Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  confirmationModal: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 280,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  confirmationIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  confirmationTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  confirmationMessage: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  confirmationButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  confirmationButtonSecondary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    flex: 1,
+  },
+  confirmationButtonPrimary: {
+    backgroundColor: '#ef4444',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    flex: 1,
+  },
+  confirmationButtonTextSecondary: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  confirmationButtonTextPrimary: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  // Notification styles
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+  },
+  notificationItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  notificationContent: {
+    padding: 12,
+  },
+  notificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  notificationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 6,
+    flex: 1,
+  },
+  notificationMessage: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  gameInfo: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 8,
+  },
+  gameName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginBottom: 2,
+  },
+  gameDetails: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  invitationActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  acceptButton: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 4,
+  },
+  acceptButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  rejectButton: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  rejectButtonText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyNotifications: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.4)',
+  },
+  // Additional notification styles
+  inviterText: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+});
+
+export default MoreScreen;
