@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "303410134143",
+    "project_id": "hagz-v5",
+    "storage_bucket": "hagz-v5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:303410134143:android:0a3c2522df95970ee1934a",
+        "android_client_info": {
+          "package_name": "com.saadany2.hagzfootballapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSMsdquGpLv-I_4UjH-vM2COsj7L4euN4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
